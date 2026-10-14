@@ -1,4 +1,4 @@
-<title>Nos chantiers</title>
+<title>Nos projets</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -262,14 +262,14 @@ dialog.fiche::backdrop{background:rgba(17,24,31,.62)}
       <p><span id="cfgPretTexte"></span> <a id="cfgPretLien" target="_blank" rel="noopener"></a></p>
     </div>
     <div>
-      <h3 id="cfgContactTitre"></h3>
+      <h3>Nous contacter</h3>
       <p id="cfgContactTexte"></p>
       <a class="contact-btn" id="openFiche" href="#">✉ Fiche contact fournisseur</a>
       
     </div>
     <div class="duo">
       <div>
-        <h3 id="cfgAsavoirTitre"></h3>
+        <h3>À savoir</h3>
         <p id="cfgAsavoir"></p>
       </div>
       <div class="credit">
@@ -722,20 +722,36 @@ const CFG_DEFAULT = {
  "Pret_Titre": "Être prêt le jour J",
  "Pret_Texte": "Nos consultations sont publiées sur PLACE, la plateforme des achats de l'État. Créez votre compte et une alerte sur nos marchés :",
  "Pret_Lien": "https://www.marches-publics.gouv.fr",
- "Contact_Titre": "Nous contacter",
  "Contact_Texte": "UAMP, DISP de Rennes. Présentez votre entreprise et les opérations qui vous intéressent.",
- "Asavoir_Titre": "À savoir",
  "Asavoir": "Les sites pénitentiaires imposent des contraintes particulières : accès contrôlés, habilitation du personnel, travaux en milieu occupé. Elles sont détaillées dans chaque dossier de consultation.",
  "Concepteur": "Présentation conçue et réalisée par le DPFAC",
  "Mention": "Programmation prévisionnelle et non contractuelle, susceptible d'évoluer (calendrier, montants, allotissement).",
  "Mail_Service_Achat": "uamp.disp-rennes@justice.fr",
  "Mail_Objet": "Sourcing chantiers DISP Rennes",
  "Mail_Intro": "Notre entreprise souhaite se faire connaître de la DISP de Rennes dans le cadre du sourcing de vos opérations de travaux.",
- "Fiche_Surtitre": "Sourcing · Salon inversé DISP Rennes",
+ "Fiche_Surtitre": "Sourcing · 8ème salon des achats (Roazhon Park)",
  "Fiche_Texte": "Vos coordonnées sont transmises par e-mail à l'UAMP de la DISP de Rennes.",
  "Domaines": "BTP / Travaux (TRX);Maîtrise d'œuvre / Ingénierie (MOE);Gros œuvre / Démolition;Second œuvre / Rénovation;Désamiantage / Dépollution;Génie climatique / CVC / Plomberie;Électricité / Courants faibles;Sûreté / Vidéosurveillance / Sécurité incendie;Accessibilité;Autre"
 };
 const CFG_KEYS=Object.keys(CFG_DEFAULT);
+/* Nom des colonnes dans la table Contexte_Com (le premier fait foi ; les anciens noms restent acceptés) */
+const CFG_COLS={
+  Id_Service:["Id_Service_Acheteur","Id_Service"],
+  Titre:["Titre_Accroche","Titre"],
+  Sous_titre:["Sous_titre"],
+  Terme:["Type_Marchés","Terme"],
+  Libelles_Types:["Libelles_Types_Marchés","Libelles_Types"],
+  Note_Calendrier:["Note_Calendrier"],
+  Pret_Titre:["Titre_Bloc_Droite_Bas_Page","Pret_Titre"],
+  Pret_Texte:["Texte_Bloc_Droite_Bas_Page","Pret_Texte"],
+  Pret_Lien:["Lien_Bloc_Droite_Bas_Page","Pret_Lien"],
+  Contact_Texte:["Contact_Texte"],
+  Asavoir:["A_savoir_Texte","Asavoir"],
+  Concepteur:["Concepteur"], Mention:["Mention"],
+  Mail_Service_Achat:["Mail_Service_Achat"], Mail_Objet:["Mail_Objet"], Mail_Intro:["Mail_Intro"],
+  Fiche_Surtitre:["Fiche_Surtitre"], Fiche_Texte:["Fiche_Texte"], Domaines:["Domaines"],
+};
+const ckey=k=>norm(k).replace(/ /g,"");
 let CFG={...CFG_DEFAULT}, CFG_TYPES={}, TERM={};
 const cap=t=>t?t[0].toUpperCase()+t.slice(1):t;
 function makeTerm(v){
@@ -747,9 +763,11 @@ function makeTerm(v){
 }
 let CFG_SIG="";
 function setConfig(row){
-  const byKey={}; for(const [k,v] of Object.entries(row||{})) byKey[norm(k).replace(/ /g,"")]=v;
+  const byKey={}; for(const [k,v] of Object.entries(row||{})) byKey[ckey(k)]=v;
   const next={...CFG_DEFAULT};
-  for(const k of CFG_KEYS){ const v=byKey[norm(k).replace(/ /g,"")]; if(v!=null&&typeof v!=="object"&&String(v).trim()!=="") next[k]=String(v).trim(); }
+  for(const k of CFG_KEYS){
+    const name=(CFG_COLS[k]||[k]).find(n=>ckey(n) in byKey); if(!name) continue;
+    const v=byKey[ckey(name)]; if(v!=null&&typeof v!=="object"&&String(v).trim()!=="") next[k]=String(v).trim(); }
   const sig=JSON.stringify(next); if(sig===CFG_SIG) return; CFG_SIG=sig; CFG=next;
   CFG_TYPES={}; for(const part of String(CFG.Libelles_Types||"").split(/[;\n]/)){ const m=part.split("="); if(m.length>=2) CFG_TYPES[m[0].trim()]=m.slice(1).join("=").trim(); }
   TERM=makeTerm(CFG.Terme);
@@ -757,8 +775,7 @@ function setConfig(row){
   T("cfgService",CFG.Id_Service); T("cfgTitre",CFG.Titre); T("cfgSousTitre",CFG.Sous_titre);
   T("cfgPretTitre",CFG.Pret_Titre); T("cfgPretTexte",CFG.Pret_Texte);
   const a=document.getElementById("cfgPretLien"); a.href=CFG.Pret_Lien||"#"; a.textContent=(CFG.Pret_Lien||"").replace(/^https?:\/\/(www\.)?/,"").replace(/\/$/,""); a.hidden=!CFG.Pret_Lien;
-  T("cfgContactTitre",CFG.Contact_Titre); T("cfgContactTexte",CFG.Contact_Texte);
-  T("cfgAsavoirTitre",CFG.Asavoir_Titre); T("cfgAsavoir",CFG.Asavoir);
+  T("cfgContactTexte",CFG.Contact_Texte); T("cfgAsavoir",CFG.Asavoir);
   T("cfgConcepteur",CFG.Concepteur); T("cfgMention",CFG.Mention);
   T("cfgFicheSurtitre",CFG.Fiche_Surtitre); T("cfgFicheTexte",CFG.Fiche_Texte);
   T("cfgMailDone",CFG.Mail_Service_Achat);
@@ -773,6 +790,7 @@ function setConfig(row){
 setConfig(null);
 
 /* Recherche de la table de contexte dans le document Grist */
+let CFG_STATUS="";
 async function loadGristConfig(){
   try{
     const ids=await grist.docApi.listTables();
@@ -781,9 +799,10 @@ async function loadGristConfig(){
       const t=await grist.docApi.fetchTable(id);
       if(!Object.keys(t).some(k=>/^mail_?service/i.test(k))) continue;
       const row={}; for(const [k,col] of Object.entries(t)) if(Array.isArray(col)) row[k]=col[0];
-      setConfig(row); return true;
+      setConfig(row); CFG_STATUS="ok:"+id; return true;
     }
-  }catch(e){ console.warn("Table de contexte illisible :",e); }
+    CFG_STATUS="absente";
+  }catch(e){ console.warn("Table de contexte illisible :",e); CFG_STATUS="acces"; }
   return false;
 }
 
@@ -822,7 +841,10 @@ function startGrist(){
     if(!cols.cp&&!cols.ville) missing.push("Code postal / Ville");
     if(missing.length){ setNotice(`Colonnes non trouvées : <b>${missing.join(", ")}</b>. Associez-les dans le panneau de droite de Grist (onglet « Widget »).`); return; }
     setData(records, cols);
-    setNotice(problemsNotice());
+    const cfgMsg= CFG_STATUS==="acces" ? "Textes par défaut affichés : le widget n'a pas accès à la table <b>Contexte_Com</b>. Dans le panneau du widget, réglez le niveau d'accès sur <b>Accès complet au document</b>."
+               : CFG_STATUS==="absente" ? "Textes par défaut affichés : aucune table avec une colonne <b>Mail_Service_Achat</b> dans ce document."
+               : "";
+    setNotice([cfgMsg,problemsNotice()].filter(Boolean).join("<br>"));
   });
 }
 const inFrame=(()=>{try{return window.self!==window.top}catch(e){return true}})();
