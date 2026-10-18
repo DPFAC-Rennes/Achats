@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personnalisation de la page</title>
+<style>
+  :root{
+    --bg:#f6f6f6; --paper:#fff; --ink:#161616; --muted:#5f6368; --line:#d9d9d9;
+    --accent:#000091; --accent-soft:#e8edff; --ok:#18753c; --err:#ce0500; --warn-bg:#fff4d6; --warn-ink:#5a4200;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#161616; --paper:#1e1e1e; --ink:#f0f0f0; --muted:#a8a8a8; --line:#383838;
+      --accent:#9db3ff; --accent-soft:#232a4a; --ok:#4cc27b; --err:#ff7a74; --warn-bg:#3a2f0c; --warn-ink:#f7dc8a; color-scheme:dark }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Roboto,Arial,sans-serif;font-size:15px;line-height:1.45}
+  .wrap{max-width:880px;margin:0 auto;padding:16px 16px 56px;display:grid;gap:14px}
+  h1{font-size:1.35rem;margin:0}
+  .lead{margin:0;color:var(--muted)}
+  .notice{background:var(--warn-bg);color:var(--warn-ink);border-left:4px solid #e0a400;padding:8px 12px;border-radius:3px;font-size:.9rem}
+  .notice b{font-weight:700}
+  details.sec{background:var(--paper);border:1px solid var(--line);border-radius:6px}
+  details.sec > summary{cursor:pointer;list-style:none;padding:12px 16px;font-weight:700;font-size:1.05rem;display:flex;gap:10px;align-items:baseline}
+  details.sec > summary::-webkit-details-marker{display:none}
+  details.sec > summary::before{content:"▸";color:var(--accent)}
+  details.sec[open] > summary::before{content:"▾"}
+  .sec-intro{margin:0 16px 4px;color:var(--muted);font-size:.9rem}
+  .fields{padding:6px 16px 16px;display:grid;gap:18px}
+  .fld{display:grid;gap:4px}
+  .fld label{font-weight:700}
+  .where{display:inline-block;font-size:.78rem;background:var(--accent-soft);color:var(--accent);padding:1px 8px;border-radius:999px;width:fit-content;max-width:100%}
+  .help{font-size:.88rem;color:var(--muted)}
+  input,textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:4px;padding:8px 10px;width:100%;min-width:0}
+  textarea{min-height:76px;resize:vertical}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+  input:disabled,textarea:disabled{opacity:.55;cursor:not-allowed}
+  .fld.bad input,.fld.bad textarea{border-color:var(--err)}
+  .st{font-size:.8rem;min-height:1.1em}
+  .st.ok{color:var(--ok)} .st.err{color:var(--err)}
+  .missing{font-size:.85rem;color:var(--warn-ink);background:var(--warn-bg);padding:4px 8px;border-radius:3px}
+  .logo-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo-prev{background:#fff;border:1px dashed var(--line);border-radius:4px;min-width:140px;min-height:56px;display:flex;align-items:center;justify-content:center;padding:4px}
+  .logo-prev img{display:block;height:56px;width:auto;max-width:100%;object-fit:contain}
+  .logo-prev span{font-size:.8rem;color:#777;padding:0 10px}
+  .empty{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:18px;display:grid;gap:10px;justify-items:start}
+  button{font:inherit;cursor:pointer;border:0;border-radius:4px;padding:8px 14px;background:var(--accent);color:#fff;font-weight:700}
+  @media (prefers-color-scheme: dark){ button{color:#10131f} }
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Personnalisation de la page</h1>
+    <p class="lead">Remplissez les champs ci-dessous : chaque modification est enregistrée dès que vous quittez le champ et la page publique la prend en compte sous 30 secondes. Un champ laissé vide affiche un texte neutre par défaut.</p>
+    <p class="notice"><b>Logos :</b> ce formulaire ne les gère pas. Pour changer un logo, il faut le faire directement dans la table <b>Personnalisation_Page</b> (voir la section « Logos » en bas).</p>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="empty" id="vide" hidden>
+    <b>La table de personnalisation est vide.</b>
+    <span>Il faut une ligne (et une seule) pour y saisir vos textes.</span>
+    <button type="button" id="creer">Créer la ligne de personnalisation</button>
+  </div>
+
+  <main id="form"></main>
+</div>
+
+<script>
+/* =====================================================================
+   Ce fichier ne contient AUCUNE donnée : uniquement la description des champs
+   (libellé, emplacement sur la page, notice) et le code de saisie.
+   Les valeurs saisies sont lues et écrites dans la table Grist « Personnalisation_Page ».
+   ===================================================================== */
+
+/* type : text (défaut) | area | email | url | list (liste de mots) ; optional : colonne facultative */
+const SECTIONS = [
+ { titre:"Haut de page", intro:"L'en-tête de la page : service, titre et phrase d'accroche.", champs:[
+  { col:"Id_Service_Acheteur", label:"Service acheteur",
+    ou:"Au-dessus du titre, en haut à gauche",
+    aide:"Le nom de votre service, tel que les entreprises doivent le lire (direction et service).",
+    ex:"Nom de la direction · Service achats" },
+  { col:"Titre_Accroche", label:"Titre de la page",
+    ou:"Grand titre en haut de page (la période des consultations s'ajoute automatiquement à sa suite)",
+    aide:"Court et parlant : deux à quatre mots.", ex:"Nos chantiers" },
+  { col:"Sous_titre", label:"Phrase d'accroche", type:"area",
+    ou:"Sous le titre",
+    aide:"Une ou deux phrases : ce que l'entreprise trouve ici et ce qu'elle peut en faire. Environ 200 caractères.",
+    ex:"Opérations et marchés de nos sites. Repérez ceux proches de chez vous et préparez-vous avant la publication." },
+  { col:"Type_Marchés", label:"Nom de ce qui est présenté (au pluriel)", type:"list", choix:["Opérations","Projets d'achats"],
+    ou:"À côté des nombres : « 12 opérations » dans le compteur en haut à droite, sur la carte, dans la liste d'une ville et sur l'onglet 1",
+    aide:"Le mot que vous employez pour désigner chaque ligne de votre programmation. Écrivez-le au pluriel : il passe seul au singulier quand il n'y en a qu'un (« 1 opération »). Choisissez dans la liste ou tapez le vôtre.",
+    ex:"Opérations" },
+  { col:"Libelles_Types_Marchés", label:"Noms des types de marché", type:"area",
+    ou:"Boutons de filtre, étiquettes et listes",
+    aide:"Format : CODE=Libellé, séparés par des points-virgules. Ne changez jamais le code avant le signe = (MOE, TRX, FCS…) : il doit correspondre à la colonne « Type de marché » de vos tables. Seul le libellé après le signe = se modifie.",
+    ex:"MOE=Maîtrise d'œuvre;TRX=Travaux;FCS=Fournitures & services" }
+ ]},
+
+ { titre:"Onglets et page « fournitures et services »", intro:"À remplir seulement si vous utilisez la table des marchés multi-sites. Sinon, laissez ces champs vides.", champs:[
+  { col:"Titre_Onglet_1", label:"Nom de l'onglet 1",
+    ou:"Premier onglet, sous l'en-tête (opérations liées à des bâtiments)",
+    aide:"Quelques mots.", ex:"Opérations immobilières" },
+  { col:"Titre_Onglet_2", label:"Nom de l'onglet 2",
+    ou:"Second onglet (marchés multi-sites)",
+    aide:"Quelques mots.", ex:"Fournitures & services" },
+  { col:"Titre_Accroche_2", label:"Titre de la page 2",
+    ou:"Grand titre quand l'onglet 2 est ouvert", aide:"Même principe que le titre de la page 1.", ex:"Nos marchés de services" },
+  { col:"Sous_titre_2", label:"Phrase d'accroche de la page 2", type:"area",
+    ou:"Sous le titre de la page 2", aide:"Une ou deux phrases.",
+    ex:"Marchés couvrant plusieurs établissements. Repérez les lots qui concernent les sites proches de chez vous." }
+ ]},
+
+ { titre:"Bas de page", intro:"Quatre blocs de texte, puis une mention discrète tout en bas.", champs:[
+  { col:"Titre_Bloc_Droite_Bas_Page", label:"Premier bloc : titre",
+    ou:"Titre du premier bloc du bas de page", aide:"Quelques mots, par exemple pour inviter à se préparer.", ex:"Être prêt le jour J" },
+  { col:"Texte_Bloc_Droite_Bas_Page", label:"Premier bloc : texte", type:"area",
+    ou:"Texte du premier bloc, juste avant le lien",
+    aide:"Une ou deux phrases. Terminez-la de façon à ce que le lien qui suit s'enchaîne naturellement (par exemple par « : »).",
+    ex:"Nos consultations sont publiées sur la plateforme des achats de l'État. Créez votre compte et une alerte :" },
+  { col:"Lien_Bloc_Droite_Bas_Page", label:"Premier bloc : lien", type:"url",
+    ou:"Lien cliquable à la fin du premier bloc",
+    aide:"Adresse complète, commençant par https://. Elle s'affiche sans le https:// pour rester lisible.",
+    ex:"https://www.exemple.gouv.fr" },
+  { col:"Contact_Texte", label:"Bloc « Nous contacter »", type:"area",
+    ou:"Au-dessus du bouton « Fiche contact fournisseur »",
+    aide:"Qui contacter et pourquoi, en une ou deux phrases.", ex:"Présentez votre entreprise et les opérations qui vous intéressent." },
+  { col:"A_savoir_Texte", label:"Bloc « À savoir »", type:"area",
+    ou:"Bloc « À savoir », au centre du bas de page",
+    aide:"Les contraintes ou informations pratiques que l'entreprise doit connaître avant de répondre.",
+    ex:"Les sites imposent des contraintes particulières, détaillées dans chaque dossier de consultation." },
+  { col:"Concepteur", label:"Mention du concepteur",
+    ou:"À côté du logo du concepteur, en bas à droite",
+    aide:"Qui a conçu la présentation. Laissez vide si vous ne voulez pas de mention.", ex:"Présentation conçue et réalisée par le service concepteur" },
+  { col:"Mention", label:"Mention de bas de page", type:"area",
+    ou:"Petits caractères, tout en bas de la page",
+    aide:"Précaution d'usage ou avertissement général.",
+    ex:"Programmation prévisionnelle et non contractuelle, susceptible d'évoluer." }
+ ]},
+
+ { titre:"Fiche contact fournisseur et e-mail", intro:"La fenêtre qui s'ouvre quand une entreprise clique sur « Fiche contact fournisseur », et le message qu'elle prépare.", champs:[
+  { col:"Mail_Service_Achat", label:"Adresse qui reçoit les fiches", type:"email",
+    ou:"Destinataire du mail préparé par l'entreprise",
+    aide:"Utilisez une boîte fonctionnelle du service, pas une adresse personnelle. Aucune donnée n'est enregistrée sur le site : le mail part depuis la messagerie de l'entreprise.",
+    ex:"service-achats@exemple.gouv.fr" },
+  { col:"Mail_Objet", label:"Objet du mail",
+    ou:"Début de l'objet du mail",
+    aide:"Le nom de l'entreprise (et du marché choisi) est ajouté automatiquement à la suite.", ex:"Sourcing chantiers" },
+  { col:"Mail_Intro", label:"Introduction du mail (page 1)", type:"area",
+    ou:"Première phrase du corps du mail, pour la page 1",
+    aide:"Écrite du point de vue de l'entreprise : « Notre entreprise souhaite… ».",
+    ex:"Notre entreprise souhaite se faire connaître dans le cadre du sourcing de vos opérations de travaux." },
+  { col:"Mail_Intro_2", label:"Introduction du mail (page 2)", type:"area", optional:true,
+    ou:"Première phrase du corps du mail, pour la page 2",
+    aide:"Même principe que pour la page 1, adapté aux fournitures et services.",
+    ex:"Notre entreprise souhaite se faire connaître dans le cadre du sourcing de vos marchés de fournitures et services." },
+  { col:"Fiche_Surtitre", label:"Surtitre de la fenêtre",
+    ou:"Petite ligne en haut de la fenêtre « Fiche contact fournisseur »",
+    aide:"Par exemple le nom de l'événement.", ex:"Sourcing · Salon des achats" },
+  { col:"Fiche_Texte", label:"Texte de la fenêtre", type:"area",
+    ou:"Sous le titre de la fenêtre",
+    aide:"Dites aux entreprises où vont leurs coordonnées.", ex:"Vos coordonnées sont transmises par e-mail au service acheteur." },
+  { col:"Domaines", label:"Domaines d'activité proposés (page 1)", type:"area",
+    ou:"Liste déroulante « Domaine d'activité » de la fenêtre, page 1",
+    aide:"Séparez les domaines par un point-virgule ou un retour à la ligne. Gardez « Autre » en dernier.",
+    ex:"BTP / Travaux;Maîtrise d'œuvre / Ingénierie;Électricité / Courants faibles;Autre" },
+  { col:"Domaines_2", label:"Domaines d'activité proposés (page 2)", type:"area", optional:true,
+    ou:"Liste déroulante « Domaine d'activité » de la fenêtre, page 2",
+    aide:"Même principe que pour la page 1, adapté aux fournitures et services.",
+    ex:"Nettoyage / Propreté;Restauration;Transport / Logistique;Autre" }
+ ]},
+
+ { titre:"Logos", intro:"Ce formulaire ne gère pas les logos : ils se changent directement dans la table « Personnalisation_Page » (menu « Raw Data » à gauche). Les aperçus ci-dessous sont en lecture seule.", champs:[
+  { col:"Logo_Acheteur", label:"Logo du service acheteur", type:"logo",
+    ou:"En haut à droite de la page",
+    aide:"Pour le changer, dans la table Personnalisation_Page : 1) cliquez la cellule « Logo_Acheteur » ; 2) appuyez sur Suppr pour retirer l'ancien fichier (sinon c'est lui qui reste affiché) ; 3) glissez le nouveau PNG sur la cellule, ou appuyez sur Entrée pour choisir le fichier. Conseil : hauteur de 150 à 200 px, fond blanc ou transparent." },
+  { col:"Logo_Concepteur", label:"Logo du concepteur", type:"logo",
+    ou:"En bas à droite de la page",
+    aide:"Même méthode que pour le logo du service acheteur, dans la cellule « Logo_Concepteur » : supprimez l'ancien fichier, puis déposez le nouveau." }
+ ]}
+];
+
+/* ----------------------------- Outils ----------------------------- */
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+let REC=null;                       // la ligne de personnalisation (première ligne de la table)
+let ACCES=null;                     // jeton de lecture pour les pièces jointes
+const LOGOS={};                     // id de pièce jointe déjà affichée, par colonne
+
+/* Grist remplace parfois les lettres accentuées d'un nom de colonne : on essaie les variantes */
+function resolveKey(rec,col){
+  const c=[col, col.replace(/[^A-Za-z0-9_]/g,"_"), col.normalize("NFD").replace(/[̀-ͯ]/g,"")];
+  return c.find(k=>k in rec)||null;
+}
+function fieldId(col){ return "f-"+col.replace(/[^A-Za-z0-9_]/g,"_"); }
+
+/* ------------------------- Construction du formulaire ------------------------- */
+function buildForm(){
+  $("form").innerHTML=SECTIONS.map((s,i)=>`
+    <details class="sec" ${i===0?"open":""}>
+      <summary>${esc(s.titre)}</summary>
+      <p class="sec-intro">${esc(s.intro)}</p>
+      <div class="fields">${s.champs.map(fieldHtml).join("")}</div>
+    </details>`).join("");
+  for(const s of SECTIONS) for(const c of s.champs){
+    if(c.type==="logo") continue;
+    const el=$(fieldId(c.col));
+    el.addEventListener("change",()=>save(c,el));
+    el.addEventListener("input",()=>{ $("w-"+fieldId(c.col)).classList.remove("bad"); setStatus(c,"",""); });
+  }
+}
+function fieldHtml(c){
+  const id=fieldId(c.col), head=`
+      <label for="${id}">${esc(c.label)}</label>
+      <span class="where">${esc(c.ou)}</span>
+      <span class="help" id="h-${id}">${esc(c.aide)}</span>`;
+  if(c.type==="logo") return `<div class="fld" id="w-${id}">${head}
+      <div class="logo-box"><div class="logo-prev" id="${id}"><span>Aucun logo</span></div></div></div>`;
+  const ph=c.ex?` placeholder="ex. : ${esc(c.ex)}"`:"";
+  let input;
+  if(c.type==="area") input=`<textarea id="${id}" rows="3"${ph}></textarea>`;
+  else if(c.type==="list") input=`<input id="${id}" type="text" list="dl-${id}"${ph}><datalist id="dl-${id}">${(c.choix||[]).map(x=>`<option value="${esc(x)}">`).join("")}</datalist>`;
+  else input=`<input id="${id}" type="${c.type==="email"?"email":c.type==="url"?"url":"text"}"${ph}>`;
+  return `<div class="fld" id="w-${id}">${head}${input}
+      <span class="missing" id="m-${id}" hidden></span><span class="st" id="s-${id}" aria-live="polite"></span></div>`;
+}
+function setStatus(c,txt,cls){ const s=$("s-"+fieldId(c.col)); if(s){ s.textContent=txt; s.className="st "+(cls||""); } }
+
+/* ------------------------------ Enregistrement ------------------------------ */
+async function save(c,el){
+  const wrap=$("w-"+fieldId(c.col));
+  const key=REC&&resolveKey(REC,c.col); if(!key) return;
+  const value=el.value.trim();
+  if(value && c.type==="email" && !el.checkValidity()){ wrap.classList.add("bad"); setStatus(c,"Adresse e-mail non valide : non enregistrée.","err"); return; }
+  if(value && c.type==="url" && !/^https?:\/\/\S+$/i.test(value)){ wrap.classList.add("bad"); setStatus(c,"L'adresse doit commencer par https:// : non enregistrée.","err"); return; }
+  wrap.classList.remove("bad");
+  if(value===String(REC[key]??"").trim()){ setStatus(c,"",""); return; }
+  setStatus(c,"Enregistrement…","");
+  try{
+    await grist.selectedTable.update({ id:REC.id, fields:{ [key]:value } });
+    REC[key]=value;
+    setStatus(c,"Enregistré ✓","ok");
+    setTimeout(()=>{ const s=$("s-"+fieldId(c.col)); if(s&&s.classList.contains("ok")) setStatus(c,"",""); },2500);
+  }catch(e){ setStatus(c,"Échec de l'enregistrement : "+(e&&e.message||e),"err"); }
+}
+
+/* ---------------------------- Lecture de la ligne ---------------------------- */
+function showRecord(rec){
+  REC=rec;
+  $("vide").hidden=!!rec; $("form").hidden=!rec;
+  if(!rec) return;
+  for(const s of SECTIONS) for(const c of s.champs){
+    const id=fieldId(c.col), key=resolveKey(rec,c.col);
+    if(c.type==="logo"){ showLogo(c,id,key?rec[key]:null); continue; }
+    const el=$(id), miss=$("m-"+id);
+    if(!key){
+      el.disabled=true; miss.hidden=false;
+      miss.textContent=c.optional
+        ? `Colonne facultative absente. Pour l'utiliser, ajoutez dans la table « Personnalisation_Page » une colonne de texte nommée « ${c.col} ».`
+        : `Colonne « ${c.col} » introuvable dans la table : ce champ ne peut pas être enregistré.`;
+      continue;
+    }
+    el.disabled=false; miss.hidden=true;
+    const v=rec[key]==null||typeof rec[key]==="object"?"":String(rec[key]);
+    if(document.activeElement!==el && el.value!==v) el.value=v;
+  }
+}
+
+/* Aperçu des logos (pièces jointes) */
+async function showLogo(c,id,cell){
+  const box=$(id), att=Array.isArray(cell)&&cell[0]==="L"&&cell.length>1?cell[1]:null;
+  if(att===(LOGOS[c.col]||null)) return;
+  LOGOS[c.col]=att;
+  if(!att){ box.innerHTML="<span>Aucun logo</span>"; return; }
+  try{
+    ACCES=ACCES||await grist.docApi.getAccessToken({readOnly:true});
+    const rep=await fetch(`${ACCES.baseUrl}/attachments/${att}/download?auth=${encodeURIComponent(ACCES.token)}`);
+    if(!rep.ok) throw new Error("HTTP "+rep.status);
+    const img=document.createElement("img"); img.alt=c.label; img.src=URL.createObjectURL(await rep.blob());
+    box.innerHTML=""; box.appendChild(img);
+  }catch(e){ ACCES=null; LOGOS[c.col]=null; box.innerHTML="<span>Aperçu indisponible</span>"; }
+}
+
+/* ------------------------------- Démarrage ------------------------------- */
+function notice(html){ const n=$("notice"); n.innerHTML=html||""; n.hidden=!html; }
+function startGrist(){
+  grist.ready({ requiredAccess:"full" });
+  grist.onRecords(records=>{
+    notice(records.length>1?"La table contient <b>plusieurs lignes</b> : seule la première est utilisée par la page. Supprimez les autres.":"");
+    showRecord(records[0]||null);
+  },{ includeColumns:"all" });
+  $("creer").addEventListener("click",async()=>{
+    try{ await grist.selectedTable.create({ fields:{} }); }
+    catch(e){ notice("Impossible de créer la ligne : "+esc(e&&e.message||e)); }
+  });
+}
+function loadScript(src){return new Promise((ok,ko)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=ko;document.head.appendChild(s);});}
+buildForm();
+const inFrame=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+if(inFrame){
+  notice("Chargement de la table Grist…");
+  loadScript("https://docs.getgrist.com/grist-plugin-api.js")
+    .catch(()=>loadScript("https://grist.numerique.gouv.fr/grist-plugin-api.js"))
+    .then(()=>{ notice(""); startGrist(); })
+    .catch(()=>notice("Grist est injoignable : impossible de charger la table."));
+}else{
+  notice("Cette page est un widget Grist. Ajoutez-la comme widget personnalisé sur la table <b>Personnalisation_Page</b> (accès complet au document).");
+}
+</script>
+</body>
+</html>
