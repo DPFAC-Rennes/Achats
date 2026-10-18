@@ -39,13 +39,16 @@ button,input,select{font:inherit;color:inherit}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 
 /* ---------- En-tête ---------- */
-.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.top{position:sticky;top:0;z-index:5;background:var(--panel);padding:14px 16px 10px;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
 .brand h1{margin:0;font-size:18px;line-height:1.25}
 .brand h1 small{display:block;font-size:12.5px;font-weight:400;color:var(--muted)}
-.sign{display:flex;align-items:center;gap:12px;text-align:right;flex:none}
-.sign img{height:52px;width:auto;display:block}
-.sign span{font-size:12px;line-height:1.35;color:var(--muted);max-width:240px}
+.sign{display:grid;grid-template-columns:min-content;justify-items:stretch;gap:6px;flex:none;margin:0}
+.sign img{height:58px;width:auto;max-width:none;display:block}
+.sign span{font-size:11px;line-height:1.35;color:var(--muted);letter-spacing:.01em;padding-top:6px;border-top:1px solid var(--line);white-space:normal}
+.sign:not(.has-logo){grid-template-columns:auto}
+.sign:not(.has-logo) span{border-top:0;padding-top:0;text-align:right;max-width:260px}
+.version{font-size:11px;color:var(--muted);text-align:right;padding:0 16px 14px}
 
 /* ---------- Bascule de profil ---------- */
 .profil{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
@@ -175,8 +178,9 @@ td small{color:var(--muted)}
 <div class="top">
   <header class="brand">
     <h1>Catalogue des marchés<small>Classement selon la nomenclature GM Chorus</small></h1>
-    <div class="sign"><span id="mention"></span><img id="logo" alt="Ministère de la Justice – Secrétariat général" hidden></div>
+    <figure class="sign" id="sign"><img id="logo" alt="Ministère de la Justice – Secrétariat général" hidden><span id="mention"></span></figure>
   </header>
+  <p id="diag" class="note" role="status" hidden style="margin:-6px 0 10px;color:var(--warn)"></p>
   <div id="ui">
     <div class="profil">
       <span class="lbl" id="lblProfil">Je suis gestionnaire :</span>
@@ -217,6 +221,7 @@ td small{color:var(--muted)}
 <main id="list" role="tabpanel" aria-labelledby="tab-cat"></main>
 <section id="ctrl" role="tabpanel" aria-labelledby="tab-ctrl" hidden></section>
 <datalist id="gmlist"></datalist>
+<p class="version" id="version"></p>
 
 <div class="veil" id="veil"></div>
 <div class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="ptitle">
@@ -232,6 +237,7 @@ td small{color:var(--muted)}
 
 <script>
 /* ===================== Configuration ===================== */
+const VERSION = '2026-10-18 · v7';
 const ALERTE_JOURS = 183;
 const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
 const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
@@ -303,12 +309,12 @@ function normaliseEJ(rec){
   let postes = [];
   const raw = g('postes');
   if (raw) { try { postes = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch(e){ postes = []; } }
-  else if (POSTES_TABLE) postes = POSTES_TABLE.filter(p => p.Marche === rec.id).map(p => ({
+  if (!postes.length && POSTES_TABLE) postes = POSTES_TABLE.filter(p => p.Marche === rec.id || (rec.ID_marche && String(p.Marche) === String(rec.ID_marche))).map(p => ({
     id:p.id, source:p.Source, ligne:p.Ligne_source, poste:p.Poste, programme:p.Programme, libelle:p.Libelle_poste, structure:p.Structure, lot:p.Lot, gm:p.GM,
     gm_libelle:p.Libelle_GM, segment:p.Segment, segment_libelle:p.Libelle_segment, domaine:p.Domaine_achat,
     domaine_libelle:p.Libelle_domaine, cf:p.Centre_financier, df:p.Domaine_fonctionnel, activite:p.Activite,
     axe:p.Axe, prestation:p.Prestation, duree:p.Duree, debut:p.Debut, fin:p.Fin, commentaire:p.Commentaire, info:p.Info }));
-  postes.forEach(p => { p.programme = String(p.programme ?? ''); p.domaine = String(p.domaine || '') || '—';
+  postes.forEach(p => { const pm = String(p.programme ?? '').match(/(912|107|182)/); p.programme = pm ? pm[1] : String(p.programme ?? '').trim(); p.domaine = String(p.domaine || '') || '—';
     if (p.domaine === '—') p.domaine_libelle = 'Non classé (GM à renseigner)'; p.gm = String(p.gm ?? ''); });
   return { id:rec.id, objet:g('objet'), lots:g('lots'), reference:g('reference'), titulaire:g('titulaire'),
     fournisseur:String(g('fournisseur')), ej:String(g('ej')), pa:g('pa'), duree:g('duree'),
@@ -427,7 +433,13 @@ function render(){
   if (!state.profil){
     ui.querySelectorAll('.row,.kpis,.chips').forEach(e => e.hidden = true);
     $('#ctrl').hidden = true; $('#list').hidden = false;
-    $('#list').innerHTML = `<div class="hors-grist"><strong>Choisissez votre profil</strong>Gestionnaire PJJ pour les marchés du programme 182, gestionnaire DISP pour les programmes 107 et 912.</div>`;
+    const n = pr => EJS.filter(e => e.postes.some(p => PROFILS[pr].includes(p.programme))).length;
+    $('#nctrl').textContent = '–'; $('#nctrl').classList.add('zero');
+    $('#list').innerHTML = `<div class="hors-grist"><strong>Qui êtes-vous ?</strong>Choisissez votre profil pour afficher vos marchés.
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:18px">
+        <button type="button" class="btn primary" style="height:auto;padding:14px 22px;flex-direction:column;align-items:flex-start" data-go="PJJ"><b style="font-size:16px">Gestionnaire PJJ</b><span>Programme 182 · ${n('PJJ')} EJ</span></button>
+        <button type="button" class="btn primary" style="height:auto;padding:14px 22px;flex-direction:column;align-items:flex-start" data-go="DISP"><b style="font-size:16px">Gestionnaire DISP</b><span>Programmes 107 et 912 · ${n('DISP')} EJ</span></button>
+      </div></div>`;
     return;
   }
   ui.querySelectorAll('.row,.kpis,.chips').forEach(e => e.hidden = false);
@@ -439,7 +451,18 @@ function render(){
   renderKpis(); renderChips();
   const t = terms(), list = filtered();
   $('#live').textContent = plural(list.length, 'marché affiché', 'marchés affichés');
-  if (!list.length){ $('#list').innerHTML = `<p class="empty">Aucun marché ne correspond à ces critères.</p>`; return; }
+  if (!list.length){
+    if (!CARDS.length){
+      const nbPostes = EJS.reduce((a,e) => a + e.postes.length, 0);
+      const progs = {}; EJS.forEach(e => e.postes.forEach(p => progs[p.programme || '(vide)'] = (progs[p.programme || '(vide)'] || 0) + 1));
+      const cause = !EJS.length ? 'Aucune ligne reçue de la table Marches : vérifier que la vue personnalisée est branchée sur <b>Marches</b> et que l\'accès <b>complet</b> est accepté.'
+        : !nbPostes ? 'Les EJ sont reçus mais <b>aucun poste n\'y est rattaché</b>. Dans la table Postes, passer la colonne <b>Marche</b> en type <i>Référence → Marches</i> (colonne affichée ID_marche), et vérifier la formule <b>Postes_json</b>.'
+        : `Aucun poste ne porte les programmes ${esc(scope().join(', '))}.`;
+      $('#list').innerHTML = `<div class="hors-grist"><strong>Aucun marché à afficher</strong>${cause}
+        <p class="note" style="margin-top:14px">Reçu : ${EJS.length} EJ · ${nbPostes} postes · programmes trouvés : ${esc(Object.entries(progs).map(([k,v]) => k + ' (' + v + ')').join(', ') || 'aucun')}</p></div>`;
+      return;
+    }
+    $('#list').innerHTML = `<p class="empty">Aucun marché ne correspond à ces critères.</p>`; return; }
   if (state.sort !== 'arbo'){
     const s = [...list].sort(state.sort === 'fin'
       ? (a,b) => (a.fin?.getTime() ?? 9e15) - (b.fin?.getTime() ?? 9e15)
@@ -683,7 +706,10 @@ $('#chips').addEventListener('click', e => {
   if (e.target.closest('#reset')){ state.doms.clear(); state.statut=null; state.q=''; state.etab=''; $('#q').value=''; $('#etab').value=''; render(); $('#q').focus(); return; }
   const c = e.target.closest('.chip'); if (!c) return; const d = c.dataset.d;
   state.doms.has(d) ? state.doms.delete(d) : state.doms.add(d); render(); $(`.chip[data-d="${CSS.escape(d)}"]`)?.focus(); });
-$('#list').addEventListener('click', e => { const c = e.target.closest('.card'); if (c) openPanel(c.dataset.k, c); });
+$('#list').addEventListener('click', e => {
+  const go = e.target.closest('[data-go]');
+  if (go){ state.profil = go.dataset.go; state.sous = ''; save(); refresh(); $(`#profil button[data-p="${state.profil}"]`)?.focus(); return; }
+  const c = e.target.closest('.card'); if (c) openPanel(c.dataset.k, c); });
 $('#veil').addEventListener('click', closePanel); $('#close').addEventListener('click', closePanel);
 $('#copyAll').addEventListener('click', e => { if (current) copy(ficheTexte(current), e.currentTarget, 'la fiche complète'); });
 $('#pb').addEventListener('click', e => {
@@ -714,40 +740,85 @@ function graisse(nom){
           : /bold/.test(n) ? 700 : 400;
   return { weight:String(w), style:/italic|oblique/.test(n) ? 'italic' : 'normal' };
 }
+/* Reconnaît le format d'après les premiers octets (Grist sert les pièces jointes sans type fiable) */
+function sniff(buf){
+  const b = new Uint8Array(buf.slice(0, 16)), t = new TextDecoder().decode(buf.slice(0, 300)).trim().toLowerCase();
+  const sig = String.fromCharCode(...b.slice(0, 4));
+  if (b[0] === 0x89 && sig.slice(1) === 'PNG') return { kind:'img', type:'image/png' };
+  if (b[0] === 0xFF && b[1] === 0xD8) return { kind:'img', type:'image/jpeg' };
+  if (sig === 'GIF8') return { kind:'img', type:'image/gif' };
+  if (sig === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP') return { kind:'img', type:'image/webp' };
+  if (t.startsWith('<svg') || (t.startsWith('<?xml') && t.includes('<svg')) || t.includes('<svg')) return { kind:'img', type:'image/svg+xml' };
+  if (sig === 'wOF2') return { kind:'font', type:'font/woff2' };
+  if (sig === 'wOFF') return { kind:'font', type:'font/woff' };
+  if (sig === 'OTTO') return { kind:'font', type:'font/otf' };
+  if (b[0] === 0 && b[1] === 1 && b[2] === 0 && b[3] === 0) return { kind:'font', type:'font/ttf' };
+  if (sig === 'PK\x03\x04') return { kind:'zip' };
+  return { kind:'?' };
+}
+const DIAG = [];
+function diag(msg){ DIAG.push(msg); const d = $('#diag'); if (d){ d.hidden = false; d.textContent = DIAG.join(' · '); } console.warn('[widget marchés]', msg); }
 async function chargerRessources(){
-  try {
-    const ctx = await grist.docApi.fetchTable(RESSOURCES.table);
-    if (!ctx.id || !ctx.id.length) return;
-    const col = k => (ctx[RESSOURCES[k]] || [])[0];
-    const texte = col('mention'); if (texte) $('#mention').textContent = texte;
-    const logoIds = ids(col('logo')), policeIds = ids(col('police'));
-    if (!logoIds.length && !policeIds.length) return;
-    const att = await grist.docApi.fetchTable('_grist_Attachments');
-    const nomDe = id => att.fileName?.[att.id.indexOf(id)] || '';
-    const { token, baseUrl } = await grist.docApi.getAccessToken({ readOnly:true });
-    const url = id => `${baseUrl}/attachments/${id}/download?auth=${token}`;
-    if (logoIds.length){ const blob = await (await fetch(url(logoIds[0]))).blob(); const img = $('#logo'); img.src = URL.createObjectURL(blob); img.hidden = false; }
-    for (const id of policeIds){
-      const nom = nomDe(id); if (nom && !/\.(woff2?|ttf|otf)$/i.test(nom)) continue;
-      const buf = await (await fetch(url(id))).arrayBuffer();
-      const f = new FontFace('Marianne', buf, { ...graisse(nom), display:'swap' }); await f.load(); document.fonts.add(f);
-    }
-  } catch(e){ console.warn('Ressources Grist non chargées :', e); }
+  let ctx;
+  try { ctx = await grist.docApi.fetchTable(RESSOURCES.table); }
+  catch(e){ diag(`Table « ${RESSOURCES.table} » introuvable ou accès insuffisant (régler le widget sur « Accès complet »)`); return; }
+  if (!ctx.id || !ctx.id.length){ diag(`La table « ${RESSOURCES.table} » est vide`); return; }
+  const col = k => (ctx[RESSOURCES[k]] || [])[0];
+  if (!(RESSOURCES.logo in ctx)) diag(`Colonne « ${RESSOURCES.logo} » absente de ${RESSOURCES.table}`);
+  const texte = col('mention'); if (texte) $('#mention').textContent = texte;
+  const logoIds = ids(col('logo')), policeIds = ids(col('police'));
+  if (RESSOURCES.logo in ctx && !logoIds.length) diag(`Aucune pièce jointe dans « ${RESSOURCES.logo} » (vérifier que la colonne est de type Pièces jointes)`);
+  if (!logoIds.length && !policeIds.length) return;
+  let noms = {};
+  try { const att = await grist.docApi.fetchTable('_grist_Attachments'); att.id.forEach((id, i) => noms[id] = att.fileName?.[i] || ''); } catch(e){}
+  let acces;
+  try { acces = await grist.docApi.getAccessToken({ readOnly:true }); }
+  catch(e){ diag('Jeton d\'accès refusé : régler le widget sur « Accès complet au document »'); return; }
+  const lire = async id => {
+    const r = await fetch(`${acces.baseUrl}/attachments/${id}/download?auth=${acces.token}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.arrayBuffer();
+  };
+  for (const id of logoIds.slice(0, 1)){
+    try {
+      const buf = await lire(id), f = sniff(buf);
+      if (f.kind !== 'img'){ diag(`Le fichier logo « ${noms[id] || id} » n'est pas une image reconnue (png, jpg, svg)`); continue; }
+      const img = $('#logo');
+      img.onerror = () => { img.hidden = true; $('#sign').classList.remove('has-logo'); diag(`Logo « ${noms[id] || id} » illisible par le navigateur`); };
+      img.src = URL.createObjectURL(new Blob([buf], { type: f.type })); img.hidden = false; $('#sign').classList.add('has-logo');
+    } catch(e){ diag(`Logo non téléchargé (${e.message})`); }
+  }
+  for (const id of policeIds){
+    try {
+      const buf = await lire(id), f = sniff(buf);
+      if (f.kind === 'zip'){ diag(`« ${noms[id] || id} » est un ZIP : déposer les fichiers de police décompressés`); continue; }
+      if (f.kind !== 'font') continue;
+      const face = new FontFace('Marianne', buf, { ...graisse(noms[id] || ''), display:'swap' });
+      await face.load(); document.fonts.add(face);
+    } catch(e){ diag(`Police « ${noms[id] || id} » non chargée`); }
+  }
 }
 
 /* ===================== Démarrage ===================== */
 $('#mention').textContent = MENTION;
+$('#version').textContent = 'Version du widget : ' + VERSION;
 const INSIDE = window.self !== window.top && typeof grist !== 'undefined';
 if (INSIDE){
   grist.ready({ requiredAccess:'full' });
   chargerRessources(); chargerReferentiels();
+  let recu = false;
+  setTimeout(() => { if (!recu) diag('Aucune donnée reçue : vérifier que la vue personnalisée est branchée sur la table Marches et que l\'« Accès complet au document » a été accepté (panneau de droite › Personnalisé)'); }, 4000);
   grist.onRecords(async recs => {
-    if (recs.length && !(COLS.postes in recs[0]) && !POSTES_TABLE){
+    recu = true;
+    const jsonVide = !recs.length || !(COLS.postes in recs[0]) || recs.every(r => !r[COLS.postes] || r[COLS.postes] === '[]');
+    if (jsonVide){
       try { const t = await grist.docApi.fetchTable('Postes');
         POSTES_TABLE = t.id.map((id,i) => Object.fromEntries(Object.keys(t).map(k => [k, t[k][i]]))); }
-      catch(e){ POSTES_TABLE = []; }
+      catch(e){ POSTES_TABLE = []; diag('Table Postes illisible : accorder l\'« Accès complet au document » au widget'); }
     }
     load(recs);
+    if (recs.length && EJS.every(e => !e.postes.length)) diag(`${recs.length} EJ reçus mais aucun poste rattaché : convertir Postes.Marche en Référence vers Marches (colonne affichée ID_marche), puis vérifier la formule Postes_json`);
+    else if (recs.length && !(COLS.postes in recs[0])) diag('Colonne Postes_json absente : le widget lit directement la table Postes (fonctionne, mais ajoutez la formule pour des mises à jour instantanées)');
   });
 } else {
   $('#ui').hidden = true;
@@ -756,3 +827,4 @@ if (INSIDE){
 </script>
 </body>
 </html>
+
