@@ -251,7 +251,7 @@ td small{color:var(--muted)}
 
 <script>
 /* ===================== Configuration ===================== */
-const VERSION = '2026-10-18 · v11';
+const VERSION = '2026-10-18 · v12';
 const ALERTE_JOURS = 183;
 const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
 const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
@@ -335,7 +335,7 @@ function normaliseEJ(rec){
   return { id:rec.id, objet:g('objet'), lots:g('lots'), reference:g('reference'), titulaire:g('titulaire'),
     fournisseur:String(g('fournisseur')), ej:String(g('ej')), pa:g('pa'), duree:g('duree'),
     debut:toDate(g('debut')), fin:toDate(g('fin')), referent:g('referent'), rubrique:g('rubrique'),
-    prestations:g('prestations'), commentaires:g('commentaires'), infos:g('infos'), sources:rec.Sources || '', postes };
+    prestations:g('prestations'), commentaires:g('commentaires'), infos:g('infos'), sources:rec.Sources || '', archive: !!rec.Archive, postes };
 }
 
 /* Carte = un marché attribué (objet + référence + lot + titulaire), regroupant ses EJ dans le périmètre choisi */
@@ -768,7 +768,7 @@ document.addEventListener('keydown', e => {
   if (!open && e.key === '/' && !['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)){ e.preventDefault(); $('#q').focus(); }
 });
 function load(records){
-  EJS = records.map(normaliseEJ);
+  EJS = records.map(normaliseEJ).filter(e => !e.archive);   // les marchés archivés (widget de saisie) sont exclus
   const tous = EJS.flatMap(e => e.postes);
   PROG_COLONNE = tous.some(p => p.programme);
   if (tous.length && !PROG_COLONNE) diag('Les postes n\'ont aucun programme : ce document a été créé avec l\'ancien fichier d\'import (PJJ seul, 86 EJ). Réimportez la dernière version de Marches_import_Grist.xlsx (384 EJ, colonne Postes.Programme).');
