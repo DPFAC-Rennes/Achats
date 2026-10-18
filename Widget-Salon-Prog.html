@@ -233,13 +233,17 @@ tbody th b .dep-n{margin-right:7px;position:relative;top:-2px}
 /* Logos institutionnels (fond blanc conservé en mode sombre, charte oblige) */
 .top-right{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;gap:16px}
 .logo-plate{background:#fff;border-radius:4px;padding:0;display:inline-flex;align-items:center;line-height:0}
-\1\n.logo-dap.pending,.logo-sg.pending{visibility:hidden}
+.logo-dap{height:64px;width:auto;display:block}
+.logo-dap,.logo-sg{max-width:100%;object-fit:contain;flex:none}
+.logo-dap.pending{visibility:hidden;aspect-ratio:388/95}
+.logo-sg.pending{visibility:hidden;aspect-ratio:315/140}
 .cta{align-items:start;grid-template-columns:repeat(4,minmax(0,1fr))}
 @media (max-width:980px){.cta{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.cta{grid-template-columns:1fr} .duo{grid-column:auto;grid-template-columns:1fr}}
 .duo{grid-column:span 2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
 .credit{display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;gap:8px}
-\1
+.credit .logo-sg{height:86px;width:auto;display:block}
+@media (max-width:560px){.credit .logo-sg{height:auto;max-height:86px}}
 .credit p{margin:0;font-family:var(--display);font-weight:700;font-size:1.15rem;line-height:1.2;color:var(--ink);letter-spacing:.01em;border-left:4px solid var(--trx);padding-left:10px}
 /* Service acheteur (en-tête) : plus visible que les autres surtitres */
 header.top #cfgService{font-family:var(--display);font-weight:700;font-size:1.05rem;letter-spacing:.06em;color:var(--ink);display:inline-block;border-left:4px solid var(--trx);padding-left:10px;margin-bottom:6px}
@@ -290,7 +294,7 @@ tr.mrow{cursor:pointer} tr.mrow:hover td{background:color-mix(in srgb,var(--trx-
       <p id="cfgSousTitre"></p>
     </div>
     <div class="top-right">
-      <span class="logo-plate"><img class="logo-dap pending" id="logoAcheteur" width="388" height="95" alt="Logo du service acheteur"></span>
+      <span class="logo-plate"><img class="logo-dap pending" id="logoAcheteur" alt="Logo du service acheteur"></span>
       <div class="kpis" id="kpis"></div>
     </div>
   </header>
@@ -349,7 +353,7 @@ tr.mrow{cursor:pointer} tr.mrow:hover td{background:color-mix(in srgb,var(--trx-
         <p id="cfgAsavoir"></p>
       </div>
       <div class="credit">
-        <span class="logo-plate"><img class="logo-sg pending" id="logoConcepteur" width="315" height="140" alt="Logo du service concepteur"></span>
+        <span class="logo-plate"><img class="logo-sg pending" id="logoConcepteur" alt="Logo du service concepteur"></span>
         <p id="cfgConcepteur"></p>
       </div>
     </div>
@@ -1279,3 +1283,4 @@ ${v.rs.trim()}`;
   dlg.addEventListener("close",()=>{ if(!done.hidden){ form.reset(); upd(); } });
 })();
 </script>
+
