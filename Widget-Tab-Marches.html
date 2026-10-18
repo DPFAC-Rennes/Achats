@@ -237,7 +237,7 @@ td small{color:var(--muted)}
 
 <script>
 /* ===================== Configuration ===================== */
-const VERSION = '2026-10-18 · v7';
+const VERSION = '2026-10-18 · v8';
 const ALERTE_JOURS = 183;
 const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
 const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
@@ -757,7 +757,7 @@ function sniff(buf){
   return { kind:'?' };
 }
 const DIAG = [];
-function diag(msg){ DIAG.push(msg); const d = $('#diag'); if (d){ d.hidden = false; d.textContent = DIAG.join(' · '); } console.warn('[widget marchés]', msg); }
+function diag(msg){ if (DIAG.includes(msg)) return; DIAG.push(msg); const d = $('#diag'); if (d){ d.hidden = false; d.textContent = DIAG.join(' · '); } console.warn('[widget marchés]', msg); }
 async function chargerRessources(){
   let ctx;
   try { ctx = await grist.docApi.fetchTable(RESSOURCES.table); }
@@ -818,7 +818,7 @@ if (INSIDE){
     }
     load(recs);
     if (recs.length && EJS.every(e => !e.postes.length)) diag(`${recs.length} EJ reçus mais aucun poste rattaché : convertir Postes.Marche en Référence vers Marches (colonne affichée ID_marche), puis vérifier la formule Postes_json`);
-    else if (recs.length && !(COLS.postes in recs[0])) diag('Colonne Postes_json absente : le widget lit directement la table Postes (fonctionne, mais ajoutez la formule pour des mises à jour instantanées)');
+    else if (recs.length && !(COLS.postes in recs[0])) console.info('[widget marchés] Postes_json absente : lecture directe de la table Postes.');
   });
 } else {
   $('#ui').hidden = true;
@@ -827,4 +827,5 @@ if (INSIDE){
 </script>
 </body>
 </html>
+
 
