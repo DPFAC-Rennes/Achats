@@ -38,38 +38,39 @@ button,input,select{font:inherit;color:inherit}
 .sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 
-/* ---------- En-tête ---------- */
-.top{position:sticky;top:0;z-index:5;background:var(--panel);padding:14px 16px 10px;border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
-.brand h1{margin:0;font-size:18px;line-height:1.25}
-.brand h1 small{display:block;font-size:12.5px;font-weight:400;color:var(--muted)}
-.sign{display:grid;grid-template-columns:min-content;justify-items:stretch;gap:6px;flex:none;margin:0}
-.sign img{height:58px;width:auto;max-width:none;display:block}
-.sign span{font-size:11px;line-height:1.35;color:var(--muted);letter-spacing:.01em;padding-top:6px;border-top:1px solid var(--line);white-space:normal}
-.sign:not(.has-logo){grid-template-columns:auto}
-.sign:not(.has-logo) span{border-top:0;padding-top:0;text-align:right;max-width:260px}
+/* ---------- En-tête compact ---------- */
+.brand{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand h1{margin:0;font-size:16px;line-height:1.2}
+.brand .titre p{margin:1px 0 0;font-size:12px;color:var(--muted)}
+.sign{display:flex;align-items:center;gap:12px;margin:0;flex:none}
+.sign img{height:40px;width:auto;display:block}
+.sign .vl{width:3px;align-self:stretch;min-height:34px;background:#E1772E;flex:none}
+.sign figcaption{font-size:12px;line-height:1.35;color:var(--ink);max-width:170px}
+.sign:not(.has-logo) .vl{display:none}
+.diag{margin:0;padding:6px 16px;font-size:12.5px;color:var(--warn);background:var(--warn-bg)}
 .version{font-size:11px;color:var(--muted);text-align:right;padding:0 16px 14px}
-
-/* ---------- Bascule de profil ---------- */
-.profil{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:3px;gap:3px}
-.seg button{border:0;background:none;border-radius:9px;padding:7px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;line-height:1.2}
-.seg button b{font-size:14px}
-.seg button small{font-size:12px;color:var(--muted)}
+.top{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:7px 16px 0}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-bottom:7px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:2px;gap:2px}
+.seg button{border:0;background:none;border-radius:7px;padding:5px 11px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
-.seg button[aria-pressed="true"] small{color:#dbe4f7}
-.seg.small button{padding:5px 12px;font-size:13px}
-.profil .lbl{font-size:13px;color:var(--muted)}
-
+.bar .search{flex:1 1 160px;position:relative;min-width:150px}
+.bar .search input{width:100%;height:34px;padding:0 10px 0 32px;border:1px solid var(--line);border-radius:9px;background:var(--panel);font-size:14px}
+.bar .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.bar select{height:34px;padding:0 6px;border:1px solid var(--line);border-radius:9px;background:var(--panel);width:185px;font-size:13px;text-overflow:ellipsis}
+.sumline{display:flex;align-items:center;gap:8px;padding:5px 0 7px;border-top:1px solid var(--line);flex-wrap:wrap}
+.sortlbl{margin-left:auto;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sortlbl select{height:28px;border:1px solid var(--line);border-radius:7px;background:var(--panel);font-size:12.5px;padding:0 6px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .search{flex:1 1 320px;position:relative}
 .search input{width:100%;padding:10px 12px 10px 38px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:15px}
 .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
 select{padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);max-width:280px}
-.kpis{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.kpi{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:5px 12px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
-.kpi b{font-size:18px;font-variant-numeric:tabular-nums}
-.kpi span{color:var(--muted);font-size:13px}
+.kpis{display:flex;gap:2px;flex-wrap:wrap;align-items:center}
+.kpi{border:1px solid transparent;background:none;border-radius:7px;padding:2px 8px;cursor:pointer;display:flex;gap:5px;align-items:baseline}
+.kpi:hover{background:var(--soft)}
+.kpi b{font-size:14px;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--muted);font-size:12.5px}
 .kpi[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .kpi.ok b{color:var(--ok)} .kpi.warn b{color:var(--warn)} .kpi.bad b{color:var(--bad)} .kpi.mut b{color:var(--mut)}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
@@ -149,8 +150,8 @@ td.act{width:34px;padding:2px 4px}
 td small{color:var(--muted)}
 .hors{padding:6px 12px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line)}
 /* ---------- Onglets et contrôles ---------- */
-.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 0 10px}
-.tab{border:0;background:none;padding:8px 14px 7px;border-bottom:3px solid transparent;cursor:pointer;font-weight:600;color:var(--muted);display:flex;gap:7px;align-items:center;margin-bottom:-1px}
+.tabs{display:flex;gap:2px;margin:0 4px}
+.tab{border:0;background:none;padding:6px 10px;border-bottom:3px solid transparent;cursor:pointer;font-weight:600;color:var(--muted);display:flex;gap:6px;align-items:center;font-size:13.5px}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .tab .n{font-size:12px;padding:0 7px;border-radius:999px;background:var(--bad-bg);color:var(--bad)}
 .tab .n.zero{background:var(--ok-bg);color:var(--ok)}
@@ -171,50 +172,55 @@ td small{color:var(--muted)}
 .msg{font-size:12.5px;flex-basis:100%;text-align:right}
 .msg.ok{color:var(--ok)} .msg.err{color:var(--bad)}
 @media (max-width:760px){ .crow{grid-template-columns:1fr} .fix{justify-content:flex-start} }
-@media (max-width:620px){ .sign span{display:none} .sign img{height:40px} .field{grid-template-columns:1fr 34px} .field dt{grid-column:1/-1} .cards{grid-template-columns:1fr} .tools .lbl{display:none} }
+@media (max-width:620px){ .sign figcaption{display:none} .sign img{height:32px} .field{grid-template-columns:1fr 34px} .field dt{grid-column:1/-1} .cards{grid-template-columns:1fr} .tools .lbl{display:none} }
 </style>
 </head>
 <body>
+<header class="brand">
+  <div class="titre"><h1>Catalogue des marchés</h1><p>Classement selon la nomenclature GM DAE</p></div>
+  <figure class="sign" id="sign">
+    <img id="logo" alt="Ministère de la Justice – Secrétariat général" hidden>
+    <span class="vl" aria-hidden="true"></span>
+    <figcaption id="mention"></figcaption>
+  </figure>
+</header>
+<p id="diag" class="diag" role="status" hidden></p>
 <div class="top">
-  <header class="brand">
-    <h1>Catalogue des marchés<small>Classement selon la nomenclature GM DAE</small></h1>
-    <figure class="sign" id="sign"><img id="logo" alt="Ministère de la Justice – Secrétariat général" hidden><span id="mention"></span></figure>
-  </header>
-  <p id="diag" class="note" role="status" hidden style="margin:-6px 0 10px;color:var(--warn)"></p>
   <div id="ui">
-    <div class="profil">
-      <span class="lbl" id="lblProfil">Je suis gestionnaire :</span>
-      <div class="seg" id="profil" role="group" aria-labelledby="lblProfil">
-        <button type="button" data-p="PJJ" aria-pressed="false"><b>PJJ</b><small>Programme 182</small></button>
-        <button type="button" data-p="DISP" aria-pressed="false"><b>DISP</b><small>Programmes 107 et 912</small></button>
+    <div class="bar">
+      <div class="seg" id="profil" role="group" aria-label="Je suis gestionnaire">
+        <button type="button" data-p="PJJ" aria-pressed="false" title="Gestionnaire PJJ, programme 182">PJJ · 182</button>
+        <button type="button" data-p="DISP" aria-pressed="false" title="Gestionnaire DISP, programmes 107 et 912">DISP · 107 + 912</button>
       </div>
-      <div class="seg small" id="sous" role="group" aria-label="Programme DISP" hidden>
+      <div class="seg" id="sous" role="group" aria-label="Programme DISP" hidden>
         <button type="button" data-s="" aria-pressed="true">Tout</button>
-        <button type="button" data-s="107" aria-pressed="false">107 · Services de l'État</button>
-        <button type="button" data-s="912" aria-pressed="false">912 · Cantine</button>
+        <button type="button" data-s="107" aria-pressed="false" title="Services de l'État">107</button>
+        <button type="button" data-s="912" aria-pressed="false" title="Cantine (compte de commerce)">912 cantine</button>
       </div>
-    </div>
-    <div class="tabs" role="tablist" aria-label="Affichage">
-      <button type="button" role="tab" class="tab" id="tab-cat" data-tab="cat" aria-controls="list" aria-selected="true">Catalogue</button>
-      <button type="button" role="tab" class="tab" id="tab-ctrl" data-tab="ctrl" aria-controls="ctrl" aria-selected="false" tabindex="-1">Contrôles <span class="n" id="nctrl">0</span></button>
-    </div>
-    <div class="row" role="search">
-      <div class="search">
+      <div class="tabs" role="tablist" aria-label="Affichage">
+        <button type="button" role="tab" class="tab" id="tab-cat" data-tab="cat" aria-controls="list" aria-selected="true">Catalogue</button>
+        <button type="button" role="tab" class="tab" id="tab-ctrl" data-tab="ctrl" aria-controls="ctrl" aria-selected="false" tabindex="-1">Contrôles <span class="n" id="nctrl">0</span></button>
+      </div>
+      <div class="search need-prof" role="search">
         <label for="q" class="sr">Rechercher un marché</label>
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="q" type="search" placeholder="Titulaire, n° EJ, GM, objet, établissement…" autocomplete="off">
       </div>
+      <label for="dom" class="sr">Domaine d'achat</label>
+      <select id="dom" class="need-prof cat-only"><option value="">Tous les domaines</option></select>
       <label for="etab" class="sr">Établissement ou service</label>
-      <select id="etab" class="cat-only"><option value="">Tous les établissements</option></select>
-      <label for="sort" class="sr">Ordre d'affichage</label>
-      <select id="sort" class="cat-only">
-        <option value="arbo">Par domaine d'achat</option>
-        <option value="fin">Par date de fin</option>
-        <option value="titulaire">Par titulaire</option>
-      </select>
+      <select id="etab" class="need-prof cat-only"><option value="">Tous les établissements</option></select>
     </div>
-    <div class="kpis cat-only" id="kpis" role="group" aria-label="Filtrer par échéance"></div>
-    <div class="chips cat-only" id="chips" role="group" aria-label="Filtrer par domaine d'achat"></div>
+    <div class="sumline need-prof cat-only">
+      <div class="kpis" id="kpis" role="group" aria-label="Filtrer par échéance"></div>
+      <label for="sort" class="sortlbl">Trier
+        <select id="sort">
+          <option value="arbo">par domaine</option>
+          <option value="fin">par date de fin</option>
+          <option value="titulaire">par titulaire</option>
+        </select></label>
+    </div>
+    <div id="chips" hidden></div>
   </div>
 </div>
 <p id="live" class="sr" aria-live="polite"></p>
@@ -237,7 +243,7 @@ td small{color:var(--muted)}
 
 <script>
 /* ===================== Configuration ===================== */
-const VERSION = '2026-10-18 · v9';
+const VERSION = '2026-10-18 · v10';
 const ALERTE_JOURS = 183;
 const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
 const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
@@ -381,17 +387,16 @@ function renderKpis(){
   if (c.na) items.push(['na','sans date de fin',c.na,'']);
   if (mut) items.push(['mut','mutualisés PJJ–DISP',mut,'mut']);
   $('#kpis').innerHTML = items.map(([k,l,n,cls]) =>
-    `<button type="button" class="kpi ${cls}" data-k="${k}" aria-pressed="${(state.statut||'')===k}"><b>${n}</b><span>${l}</span></button>`).join('');
+    `<button type="button" class="kpi ${cls}" data-k="${k}" aria-pressed="${(state.statut||'')===k}"><b>${n}</b><span>${l}</span></button>`).join('')
+    + ((state.doms.size || state.statut || state.q || state.etab) ? `<button type="button" class="reset" id="reset">Tout afficher</button>` : '');
 }
-function renderChips(){
+function renderChips(){   /* menu déroulant « Domaine d'achat » */
   const base = filtered('dom'), lib = {};
   CARDS.forEach(c => Object.assign(lib, c.domLib));
   const doms = Object.keys(lib).sort((a,b)=>ordre(a).localeCompare(ordre(b)));
-  $('#chips').innerHTML = doms.map(d => {
-    const n = base.filter(c => c.domaines.includes(d)).length;
-    return `<button type="button" class="chip" data-d="${esc(d)}" aria-pressed="${state.doms.has(d)}" title="${esc(lib[d])}">
-      <span class="code" style="background:${teinte(d)}">${esc(d)}</span>${esc(lib[d])} <small>${n}</small></button>`;
-  }).join('') + ((state.doms.size || state.statut || state.q || state.etab) ? `<button type="button" class="reset" id="reset">Tout afficher</button>` : '');
+  const cur = [...state.doms][0] || '';
+  $('#dom').innerHTML = '<option value="">Tous les domaines</option>' + doms.map(d =>
+    `<option value="${esc(d)}" ${d===cur?'selected':''}>${esc(d)} – ${esc(lib[d])} (${base.filter(c => c.domaines.includes(d)).length})</option>`).join('');
 }
 function fillEtabs(){
   const list = uniq(CARDS.flatMap(c => c.structures)).sort((a,b)=>a.localeCompare(b,'fr'));
@@ -433,7 +438,7 @@ function render(){
   renderProfil();
   const ui = $('#ui');
   if (!state.profil){
-    ui.querySelectorAll('.row,.kpis,.chips').forEach(e => e.hidden = true);
+    ui.querySelectorAll('.need-prof').forEach(e => e.hidden = true);
     $('#ctrl').hidden = true; $('#list').hidden = false;
     const n = pr => EJS.filter(e => e.postes.some(p => PROFILS[pr].includes(p.programme))).length;
     $('#nctrl').textContent = '–'; $('#nctrl').classList.add('zero');
@@ -444,7 +449,7 @@ function render(){
       </div></div>`;
     return;
   }
-  ui.querySelectorAll('.row,.kpis,.chips').forEach(e => e.hidden = false);
+  ui.querySelectorAll('.need-prof').forEach(e => e.hidden = false);
   const ctrlList = controles(); const nc = $('#nctrl'); nc.textContent = ctrlList.length; nc.classList.toggle('zero', !ctrlList.length);
   document.querySelectorAll('.tab').forEach(b => { const on = b.dataset.tab === state.tab; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
   document.querySelectorAll('.cat-only').forEach(e => e.hidden = state.tab !== 'cat');
@@ -547,14 +552,14 @@ function openPanel(key, opener){
     ${c.ejs.map(ejHtml).join('')}`;
   $('#copyAll').innerHTML = IC_COPY + '<span class="lbl">Copier la fiche</span>';
   $('#panel').classList.add('on'); $('#veil').classList.add('on');
-  document.querySelectorAll('.top, main, #ctrl').forEach(e => e.setAttribute('inert',''));
+  document.querySelectorAll('.brand, .top, main, #ctrl').forEach(e => e.setAttribute('inert',''));
   setTimeout(() => $('#close').focus(), 50);
   if (INSIDE) { try { grist.setCursorPos({rowId: c.ejs[0].id}); } catch(e){} }
 }
 function closePanel(){
   if (!$('#panel').classList.contains('on')) return;
   $('#panel').classList.remove('on'); $('#veil').classList.remove('on');
-  document.querySelectorAll('.top, main, #ctrl').forEach(e => e.removeAttribute('inert'));
+  document.querySelectorAll('.brand, .top, main, #ctrl').forEach(e => e.removeAttribute('inert'));
   (lastFocus && document.contains(lastFocus) ? lastFocus : $('#q'))?.focus(); current = null;
 }
 async function copy(text, btn, label){
@@ -703,8 +708,11 @@ $('#q').placeholder = 'Titulaire, n° EJ, GM, objet, établissement…';
 $('#sort').value = state.sort;
 $('#sort').addEventListener('change', e => { state.sort = e.target.value; save(); render(); });
 $('#etab').addEventListener('change', e => { state.etab = e.target.value; render(); });
-$('#kpis').addEventListener('click', e => { const k = e.target.closest('.kpi'); if (!k) return; const v = k.dataset.k || null;
+$('#kpis').addEventListener('click', e => { const k = e.target.closest('.kpi[data-k]'); if (!k) return; const v = k.dataset.k || null;
   state.statut = state.statut === v ? null : v; render(); $(`.kpi[data-k="${v||''}"]`)?.focus(); });
+$('#dom').addEventListener('change', e => { state.doms = new Set(e.target.value ? [e.target.value] : []); render(); });
+$('#kpis').addEventListener('click', e => { if (!e.target.closest('#reset')) return;
+  state.doms.clear(); state.statut=null; state.q=''; state.etab=''; $('#q').value=''; $('#etab').value=''; render(); $('#q').focus(); });
 $('#chips').addEventListener('click', e => {
   if (e.target.closest('#reset')){ state.doms.clear(); state.statut=null; state.q=''; state.etab=''; $('#q').value=''; $('#etab').value=''; render(); $('#q').focus(); return; }
   const c = e.target.closest('.chip'); if (!c) return; const d = c.dataset.d;
@@ -835,6 +843,7 @@ if (INSIDE){
 </script>
 </body>
 </html>
+
 
 
 
