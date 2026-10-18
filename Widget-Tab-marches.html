@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalogue des marchés</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --ink:#161a21; --muted:#4f5868; --line:#d9dde3; --soft:#eef0f4;
+  --accent:#1f3d7a; --accent-bg:#e5ebf7; --focus:#1f5bd6;
+  --ok:#17663b; --ok-bg:#e1f2e8; --warn:#8a4b00; --warn-bg:#fcecd2;
+  --bad:#a1170f; --bad-bg:#fbe3e1; --na:#4f5868; --na-bg:#e9ebef; --hl:#ffe680;
+  --mut:#5a3d8a; --mut-bg:#ece5f7;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171c; --panel:#1c2027; --ink:#eceff4; --muted:#a8b0bd; --line:#323843; --soft:#262b34;
+    --accent:#9ab8f2; --accent-bg:#22314d; --focus:#8fb4ff;
+    --ok:#7ddba5; --ok-bg:#173a27; --warn:#f5c063; --warn-bg:#3f2d0f;
+    --bad:#ff9a90; --bad-bg:#46211e; --na:#a8b0bd; --na-bg:#2b3039; --hl:#6b5a00;
+    --mut:#c9b3f0; --mut-bg:#33284a; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171c; --panel:#1c2027; --ink:#eceff4; --muted:#a8b0bd; --line:#323843; --soft:#262b34;
+  --accent:#9ab8f2; --accent-bg:#22314d; --focus:#8fb4ff;
+  --ok:#7ddba5; --ok-bg:#173a27; --warn:#f5c063; --warn-bg:#3f2d0f;
+  --bad:#ff9a90; --bad-bg:#46211e; --na:#a8b0bd; --na-bg:#2b3039; --hl:#6b5a00;
+  --mut:#c9b3f0; --mut-bg:#33284a; --shadow:none;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Marianne,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- En-tête ---------- */
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.brand h1{margin:0;font-size:18px;line-height:1.25}
+.brand h1 small{display:block;font-size:12.5px;font-weight:400;color:var(--muted)}
+.sign{display:flex;align-items:center;gap:12px;text-align:right;flex:none}
+.sign img{height:52px;width:auto;display:block}
+.sign span{font-size:12px;line-height:1.35;color:var(--muted);max-width:240px}
+
+/* ---------- Bascule de profil ---------- */
+.profil{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:3px;gap:3px}
+.seg button{border:0;background:none;border-radius:9px;padding:7px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;line-height:1.2}
+.seg button b{font-size:14px}
+.seg button small{font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.seg button[aria-pressed="true"] small{color:#dbe4f7}
+.seg.small button{padding:5px 12px;font-size:13px}
+.profil .lbl{font-size:13px;color:var(--muted)}
+
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.search{flex:1 1 320px;position:relative}
+.search input{width:100%;padding:10px 12px 10px 38px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:15px}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+select{padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);max-width:280px}
+.kpis{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.kpi{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:5px 12px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+.kpi b{font-size:18px;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--muted);font-size:13px}
+.kpi[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.kpi.ok b{color:var(--ok)} .kpi.warn b{color:var(--warn)} .kpi.bad b{color:var(--bad)} .kpi.mut b{color:var(--mut)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 11px 3px 4px;cursor:pointer;display:flex;align-items:center;gap:7px;font-size:13px}
+.code{min-width:26px;height:22px;border-radius:999px;display:inline-grid;place-items:center;font-weight:700;font-size:11.5px;color:#fff;padding:0 4px}
+.chip small{color:var(--muted);font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--soft);border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.reset{border:0;background:none;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:13px;padding:3px 6px}
+
+/* ---------- Liste ---------- */
+main{padding:6px 16px 48px}
+.empty{color:var(--muted);padding:40px 0;text-align:center}
+.hors-grist{max-width:560px;margin:60px auto;text-align:center;color:var(--muted)}
+.hors-grist strong{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
+details.dom{margin:14px 0 0}
+details.dom>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 4px;border-radius:10px}
+details.dom>summary::-webkit-details-marker{display:none}
+details.dom>summary .chev{transition:transform .15s;color:var(--muted);flex:none}
+details.dom[open]>summary .chev{transform:rotate(90deg)}
+details.dom>summary h2{margin:0;font-size:15px}
+details.dom>summary .code{min-width:34px;height:26px;border-radius:7px;font-size:13px}
+details.dom>summary .count{margin-left:auto;color:var(--muted);font-size:13px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px;padding:4px 0 6px}
+.card{border:1px solid var(--line);border-left:5px solid var(--c,#888);border-radius:10px;padding:11px 13px 10px;background:var(--panel);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px;width:100%;box-shadow:var(--shadow)}
+.card:hover{border-color:var(--accent);border-left-color:var(--c,#888)}
+.kick{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;line-height:1.3}
+.card .t{font-weight:700;line-height:1.3;font-size:14.5px}
+.card .who{display:flex;gap:6px;align-items:center;font-weight:600}
+.card .who svg,.card .sites svg{color:var(--muted);flex:none}
+.card dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:2px 0 0;font-size:12.5px}
+.card dt{color:var(--muted)} .card dd{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sites{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.etab{font-size:12px;padding:1px 7px;border-radius:6px;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.foot{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;margin-top:2px;font-size:12.5px;color:var(--muted)}
+.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px}
+.badge{border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.b-ok{color:var(--ok);background:var(--ok-bg)} .b-warn{color:var(--warn);background:var(--warn-bg)}
+.b-bad{color:var(--bad);background:var(--bad-bg)} .b-na{color:var(--na);background:var(--na-bg)}
+.b-prog{color:var(--accent);background:var(--accent-bg)} .b-mut{color:var(--mut);background:var(--mut-bg)}
+.note{font-size:12px;color:var(--muted)}
+mark{background:var(--hl);color:inherit;border-radius:2px}
+
+/* ---------- Fiche (dialogue) ---------- */
+.veil{position:fixed;inset:0;background:rgba(10,14,20,.4);opacity:0;pointer-events:none;transition:opacity .15s;z-index:9}
+.veil.on{opacity:1;pointer-events:auto}
+.panel{position:fixed;top:0;right:0;bottom:0;width:min(780px,100%);background:var(--panel);z-index:10;transform:translateX(100%);transition:transform .2s;display:flex;flex-direction:column;border-left:1px solid var(--line);visibility:hidden}
+.panel.on{transform:none;visibility:visible}
+.panel header{padding:16px 18px 12px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.panel header .h{flex:1;min-width:0}
+.panel header .badges{display:flex;gap:6px;flex-wrap:wrap}
+.crumb{font-size:12px;color:var(--muted);line-height:1.4}
+.panel h2{margin:4px 0 6px;font-size:19px;line-height:1.3}
+.tools{display:flex;gap:6px;flex:none}
+.btn{border:1px solid var(--line);background:var(--soft);border-radius:8px;height:34px;padding:0 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.icon{width:34px;padding:0;justify-content:center}
+.panel .body{overflow:auto;padding:6px 18px 30px}
+.panel h3{margin:20px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.fields{margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.field{display:grid;grid-template-columns:170px 1fr 34px;gap:10px;align-items:center;padding:6px 6px 6px 12px;border-top:1px solid var(--line)}
+.field:first-child{border-top:0}
+.field dt{color:var(--muted);font-size:13px}
+.field dd{margin:0;word-break:break-word}
+.cp{width:30px;height:30px;border:1px solid transparent;background:none;border-radius:7px;cursor:pointer;display:grid;place-items:center;color:var(--muted);flex:none}
+.cp:hover{background:var(--soft);border-color:var(--line);color:var(--ink)}
+.cp.done{color:var(--ok)}
+.ej{border:1px solid var(--line);border-radius:12px;margin:10px 0;overflow:hidden}
+.ej-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 10px 9px 12px;background:var(--soft)}
+.ej-head .num{font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:14px}
+.ej-head .sp{flex:1}
+.tbl-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-top:1px solid var(--line);vertical-align:top}
+thead th{color:var(--muted);font-weight:600;font-size:12px;background:var(--panel)}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+td.act{width:34px;padding:2px 4px}
+td small{color:var(--muted)}
+.hors{padding:6px 12px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line)}
+/* ---------- Onglets et contrôles ---------- */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 0 10px}
+.tab{border:0;background:none;padding:8px 14px 7px;border-bottom:3px solid transparent;cursor:pointer;font-weight:600;color:var(--muted);display:flex;gap:7px;align-items:center;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .n{font-size:12px;padding:0 7px;border-radius:999px;background:var(--bad-bg);color:var(--bad)}
+.tab .n.zero{background:var(--ok-bg);color:var(--ok)}
+#ctrl{padding:6px 16px 48px}
+.ctrl-intro{color:var(--muted);font-size:13px;margin:10px 0}
+.cgroup{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:12px 0;box-shadow:var(--shadow);overflow:hidden}
+.cgroup>h2{margin:0;font-size:14px;padding:10px 14px;display:flex;gap:8px;align-items:center;background:var(--soft)}
+.cgroup>h2 .note{font-weight:400;margin-left:auto}
+.crow{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:8px 16px;padding:10px 14px;border-top:1px solid var(--line);align-items:center}
+.crow .what b{display:block;line-height:1.3}
+.crow .what .note{display:block}
+.src{display:inline-flex;gap:5px;align-items:center;font-size:12px;padding:1px 8px;border-radius:6px;background:var(--accent-bg);color:var(--accent);margin:3px 4px 0 0;font-weight:600}
+.fix{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.fix input,.fix select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);min-width:0;width:200px;max-width:100%}
+.fix .btn{height:32px}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.ghost{background:none}
+.msg{font-size:12.5px;flex-basis:100%;text-align:right}
+.msg.ok{color:var(--ok)} .msg.err{color:var(--bad)}
+@media (max-width:760px){ .crow{grid-template-columns:1fr} .fix{justify-content:flex-start} }
+@media (max-width:620px){ .sign span{display:none} .sign img{height:40px} .field{grid-template-columns:1fr 34px} .field dt{grid-column:1/-1} .cards{grid-template-columns:1fr} .tools .lbl{display:none} }
+</style>
+</head>
+<body>
+<div class="top">
+  <header class="brand">
+    <h1>Catalogue des marchés<small>Classement selon la nomenclature GM Chorus</small></h1>
+    <div class="sign"><span id="mention"></span><img id="logo" alt="Ministère de la Justice – Secrétariat général" hidden></div>
+  </header>
+  <div id="ui">
+    <div class="profil">
+      <span class="lbl" id="lblProfil">Je suis gestionnaire :</span>
+      <div class="seg" id="profil" role="group" aria-labelledby="lblProfil">
+        <button type="button" data-p="PJJ" aria-pressed="false"><b>PJJ</b><small>Programme 182</small></button>
+        <button type="button" data-p="DISP" aria-pressed="false"><b>DISP</b><small>Programmes 107 et 912</small></button>
+      </div>
+      <div class="seg small" id="sous" role="group" aria-label="Programme DISP" hidden>
+        <button type="button" data-s="" aria-pressed="true">Tout</button>
+        <button type="button" data-s="107" aria-pressed="false">107 · Services de l'État</button>
+        <button type="button" data-s="912" aria-pressed="false">912 · Cantine</button>
+      </div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Affichage">
+      <button type="button" role="tab" class="tab" id="tab-cat" data-tab="cat" aria-controls="list" aria-selected="true">Catalogue</button>
+      <button type="button" role="tab" class="tab" id="tab-ctrl" data-tab="ctrl" aria-controls="ctrl" aria-selected="false" tabindex="-1">Contrôles <span class="n" id="nctrl">0</span></button>
+    </div>
+    <div class="row" role="search">
+      <div class="search">
+        <label for="q" class="sr">Rechercher un marché</label>
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Titulaire, n° EJ, GM, objet, établissement…" autocomplete="off">
+      </div>
+      <label for="etab" class="sr">Établissement ou service</label>
+      <select id="etab" class="cat-only"><option value="">Tous les établissements</option></select>
+      <label for="sort" class="sr">Ordre d'affichage</label>
+      <select id="sort" class="cat-only">
+        <option value="arbo">Par domaine d'achat</option>
+        <option value="fin">Par date de fin</option>
+        <option value="titulaire">Par titulaire</option>
+      </select>
+    </div>
+    <div class="kpis cat-only" id="kpis" role="group" aria-label="Filtrer par échéance"></div>
+    <div class="chips cat-only" id="chips" role="group" aria-label="Filtrer par domaine d'achat"></div>
+  </div>
+</div>
+<p id="live" class="sr" aria-live="polite"></p>
+<main id="list" role="tabpanel" aria-labelledby="tab-cat"></main>
+<section id="ctrl" role="tabpanel" aria-labelledby="tab-ctrl" hidden></section>
+<datalist id="gmlist"></datalist>
+
+<div class="veil" id="veil"></div>
+<div class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="ptitle">
+  <header>
+    <div class="h" id="ph"></div>
+    <div class="tools">
+      <button class="btn" id="copyAll" type="button"></button>
+      <button class="btn icon" id="close" type="button" aria-label="Fermer la fiche"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+  </header>
+  <div class="body" id="pb"></div>
+</div>
+
+<script>
+/* ===================== Configuration ===================== */
+const ALERTE_JOURS = 183;
+const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
+const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
+const PROFILS = { PJJ:['182'], DISP:['107','912'] };
+const LIB_PROG = { '182':'182 · PJJ', '107':'107 · Services de l\'État', '912':'912 · Cantine' };
+const COLS = { objet:'Objet', lots:'Lots', reference:'Reference', titulaire:'Titulaire', fournisseur:'N_fournisseur',
+  ej:'N_EJ', pa:'PA', duree:'Duree', debut:'Debut', fin:'Fin', referent:'Referent', rubrique:'Rubrique',
+  prestations:'Prestations', commentaires:'Commentaires', infos:'Infos', postes:'Postes_json' };
+const TEINTES = {'31':'#5b4b8a','32':'#a34a00','33':'#1d5fa8','34':'#4a5a6a','35':'#00727a','36':'#7a4a2a',
+  '37':'#b02a5b','38':'#6b4fa0','39':'#56606e','40':'#2e6b30','41':'#8a3fa0','42':'#7a1f1f','43':'#0b6e6e',
+  '44':'#6a5a00','45':'#3d4f9e','46':'#7a3d3d','47':'#4f6b2e'};
+const teinte = c => TEINTES[c] || '#5c6370';
+
+/* ===================== Icônes ===================== */
+const IC_COPY = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const IC_OK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const IC_FIRM = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>';
+const IC_PIN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+const IC_CHEV = '<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+
+/* ===================== Utilitaires ===================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const uniq = a => [...new Set(a.filter(x => x !== '' && x != null))];
+const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+function toDate(v){
+  if (v == null || v === '') return null;
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  if (typeof v === 'number') return new Date(v * 1000);
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  const d = new Date(v); return isNaN(d) ? null : d;
+}
+const fmt = d => d ? d.toLocaleDateString('fr-FR') : '';
+const periode = (a,b) => (a||b) ? `${fmt(a)||'?'} → ${fmt(b)||'?'}` : '';
+const fmtDuree = j => j < 61 ? `${j} j` : (Math.round(j/30.4) < 24 ? `${Math.round(j/30.4)} mois` : `${(j/365).toFixed(1).replace('.',',')} ans`);
+function statut(fin){
+  if (!fin) return {k:'na', label:'Sans date de fin', cls:'b-na'};
+  const j = Math.round((fin - today()) / 864e5);
+  if (j < 0) return {k:'bad', label:`Expiré depuis ${fmtDuree(-j)}`, cls:'b-bad', j};
+  if (j <= ALERTE_JOURS) return {k:'warn', label:`Fin dans ${fmtDuree(j)}`, cls:'b-warn', j};
+  return {k:'ok', label:`Actif · ${fmtDuree(j)} restants`, cls:'b-ok', j};
+}
+function hl(text, terms){
+  const src = String(text ?? '');
+  if (!terms.length || !src) return esc(src);
+  const n = norm(src), marks = [];
+  terms.forEach(t => { let i = 0; while ((i = n.indexOf(t, i)) > -1){ marks.push([i, i + t.length]); i += t.length; } });
+  if (!marks.length) return esc(src);
+  marks.sort((a,b)=>a[0]-b[0]); const mg=[];
+  marks.forEach(m => { const l = mg[mg.length-1]; if (l && m[0] <= l[1]) l[1] = Math.max(l[1], m[1]); else mg.push([...m]); });
+  let res = '', p = 0; mg.forEach(([a,b]) => { res += esc(src.slice(p,a)) + '<mark>' + esc(src.slice(a,b)) + '</mark>'; p = b; });
+  return res + esc(src.slice(p));
+}
+const plural = (n, s, p) => `${n} ${n > 1 ? (p || s + 's') : s}`;
+const ordre = c => c === '—' ? 'zz' : c;
+
+/* ===================== État ===================== */
+let EJS = [], POSTES_TABLE = null, lastFocus = null, current = null;
+const state = { profil:'', sous:'', q:'', doms:new Set(), statut:null, etab:'', sort:'arbo', tab:'cat', regle:'' };
+try { const s = JSON.parse(localStorage.getItem('marches-ui') || '{}'); Object.assign(state, {profil:s.profil||'', sous:s.sous||'', sort:s.sort||'arbo'}); } catch(e){}
+const save = () => { try { localStorage.setItem('marches-ui', JSON.stringify({profil:state.profil, sous:state.sous, sort:state.sort})); } catch(e){} };
+const scope = () => state.profil ? (state.sous ? [state.sous] : PROFILS[state.profil]) : [];
+
+/* Un enregistrement Grist (table Marches) = un EJ ; ses postes portent programme, GM, structure… */
+function normaliseEJ(rec){
+  const g = k => { const v = rec[COLS[k]]; return v == null ? '' : v; };
+  let postes = [];
+  const raw = g('postes');
+  if (raw) { try { postes = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch(e){ postes = []; } }
+  else if (POSTES_TABLE) postes = POSTES_TABLE.filter(p => p.Marche === rec.id).map(p => ({
+    id:p.id, source:p.Source, ligne:p.Ligne_source, poste:p.Poste, programme:p.Programme, libelle:p.Libelle_poste, structure:p.Structure, lot:p.Lot, gm:p.GM,
+    gm_libelle:p.Libelle_GM, segment:p.Segment, segment_libelle:p.Libelle_segment, domaine:p.Domaine_achat,
+    domaine_libelle:p.Libelle_domaine, cf:p.Centre_financier, df:p.Domaine_fonctionnel, activite:p.Activite,
+    axe:p.Axe, prestation:p.Prestation, duree:p.Duree, debut:p.Debut, fin:p.Fin, commentaire:p.Commentaire, info:p.Info }));
+  postes.forEach(p => { p.programme = String(p.programme ?? ''); p.domaine = String(p.domaine || '') || '—';
+    if (p.domaine === '—') p.domaine_libelle = 'Non classé (GM à renseigner)'; p.gm = String(p.gm ?? ''); });
+  return { id:rec.id, objet:g('objet'), lots:g('lots'), reference:g('reference'), titulaire:g('titulaire'),
+    fournisseur:String(g('fournisseur')), ej:String(g('ej')), pa:g('pa'), duree:g('duree'),
+    debut:toDate(g('debut')), fin:toDate(g('fin')), referent:g('referent'), rubrique:g('rubrique'),
+    prestations:g('prestations'), commentaires:g('commentaires'), infos:g('infos'), sources:rec.Sources || '', postes };
+}
+
+/* Carte = un marché attribué (objet + référence + lot + titulaire), regroupant ses EJ dans le périmètre choisi */
+function buildCards(){
+  const sc = scope(), map = new Map();
+  EJS.forEach(e => {
+    const vis = e.postes.filter(p => sc.includes(p.programme));
+    if (!vis.length) return;
+    const k = [e.objet, e.reference, e.lots, e.titulaire].join('|');
+    if (!map.has(k)) map.set(k, { key:k, ejs:[] });
+    map.get(k).ejs.push({ ...e, vis });
+  });
+  return [...map.values()].map(c => {
+    const e0 = c.ejs[0], vis = c.ejs.flatMap(e => e.vis), all = c.ejs.flatMap(e => e.postes);
+    const fins = c.ejs.map(e => e.fin).filter(Boolean), debs = c.ejs.map(e => e.debut).filter(Boolean);
+    const progsAll = uniq(all.map(p => p.programme));
+    const card = { key:c.key, ejs:c.ejs, objet:e0.objet, lots:e0.lots, reference:e0.reference, titulaire:e0.titulaire,
+      pa:uniq(c.ejs.map(e=>e.pa)).join(' / '), duree:uniq(c.ejs.map(e=>e.duree)).join(' / '),
+      referent:uniq(c.ejs.map(e=>e.referent)).join(' / '), rubrique:e0.rubrique,
+      debut:debs.length ? new Date(Math.min(...debs)) : null, fin:fins.length ? new Date(Math.max(...fins)) : null,
+      structures:uniq(vis.map(p => p.structure)), progs:uniq(vis.map(p => p.programme)).sort(),
+      mutualise:progsAll.includes('182') && (progsAll.includes('107') || progsAll.includes('912')),
+      horsPerimetre:all.length - vis.length,
+      domaines:uniq(vis.map(p => p.domaine)).sort((a,b)=>ordre(a).localeCompare(ordre(b))),
+      domLib:Object.fromEntries(vis.map(p => [p.domaine, p.domaine_libelle])),
+      gms:uniq(vis.map(p => p.gm)), gmLib:Object.fromEntries(vis.map(p => [p.gm, p.gm_libelle])),
+      vis };
+    card.titre = card.lots || card.reference || card.objet;
+    card.st = statut(card.fin);
+    card.hay = norm([card.objet, card.lots, card.reference, card.titulaire, card.pa, card.referent, card.rubrique,
+      ...c.ejs.flatMap(e => [e.ej, e.fournisseur, e.prestations, e.commentaires, e.infos]),
+      ...vis.map(p => [p.structure, p.libelle, p.lot, p.gm, p.gm_libelle, p.segment_libelle, p.domaine_libelle, p.prestation, p.commentaire, p.info, p.cf, p.df, p.activite].join(' '))].join(' | '));
+    return card;
+  });
+}
+let CARDS = [];
+
+/* ===================== Filtres ===================== */
+const terms = () => norm(state.q).split(/\s+/).filter(Boolean);
+function filtered(ignore){
+  const t = terms();
+  return CARDS.filter(c =>
+    (ignore === 'dom' || !state.doms.size || c.domaines.some(d => state.doms.has(d))) &&
+    (ignore === 'st' || !state.statut || (state.statut === 'mut' ? c.mutualise : c.st.k === state.statut)) &&
+    (!state.etab || c.structures.includes(state.etab)) &&
+    t.every(x => c.hay.includes(x)));
+}
+function renderProfil(){
+  document.querySelectorAll('#profil button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === state.profil));
+  $('#sous').hidden = state.profil !== 'DISP';
+  document.querySelectorAll('#sous button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === state.sous));
+}
+function renderKpis(){
+  const base = filtered('st'); const c = {ok:0,warn:0,bad:0,na:0}; let mut = 0;
+  base.forEach(m => { c[m.st.k]++; if (m.mutualise) mut++; });
+  const items = [['','marchés',base.length,''],['ok','actifs',c.ok,'ok'],['warn','à renouveler (< 6 mois)',c.warn,'warn'],['bad','expirés',c.bad,'bad']];
+  if (c.na) items.push(['na','sans date de fin',c.na,'']);
+  if (mut) items.push(['mut','mutualisés PJJ–DISP',mut,'mut']);
+  $('#kpis').innerHTML = items.map(([k,l,n,cls]) =>
+    `<button type="button" class="kpi ${cls}" data-k="${k}" aria-pressed="${(state.statut||'')===k}"><b>${n}</b><span>${l}</span></button>`).join('');
+}
+function renderChips(){
+  const base = filtered('dom'), lib = {};
+  CARDS.forEach(c => Object.assign(lib, c.domLib));
+  const doms = Object.keys(lib).sort((a,b)=>ordre(a).localeCompare(ordre(b)));
+  $('#chips').innerHTML = doms.map(d => {
+    const n = base.filter(c => c.domaines.includes(d)).length;
+    return `<button type="button" class="chip" data-d="${esc(d)}" aria-pressed="${state.doms.has(d)}" title="${esc(lib[d])}">
+      <span class="code" style="background:${teinte(d)}">${esc(d)}</span>${esc(lib[d])} <small>${n}</small></button>`;
+  }).join('') + ((state.doms.size || state.statut || state.q || state.etab) ? `<button type="button" class="reset" id="reset">Tout afficher</button>` : '');
+}
+function fillEtabs(){
+  const list = uniq(CARDS.flatMap(c => c.structures)).sort((a,b)=>a.localeCompare(b,'fr'));
+  if (!list.includes(state.etab)) state.etab = '';
+  $('#etab').innerHTML = '<option value="">Tous les établissements</option>' + list.map(x => `<option ${x===state.etab?'selected':''}>${esc(x)}</option>`).join('');
+}
+function sitesHtml(list, t, max=3){
+  if (!list.length) return '';
+  const shown = list.slice(0, max).map(s => `<span class="etab">${hl(s, t)}</span>`).join(' ');
+  return `<span class="sites" title="${esc(list.join(' · '))}">${IC_PIN}${shown}${list.length > max ? ` <span class="etab">+${list.length - max} autres</span>` : ''}</span>`;
+}
+function card(c, t, dom){
+  const kicker = [c.objet !== c.titre ? c.objet : '', c.lots && c.reference ? c.reference : ''].filter(Boolean).join(' · ');
+  const gmsDom = dom ? uniq(c.vis.filter(p => p.domaine === dom).map(p => p.gm)) : c.gms;
+  const autres = dom ? c.domaines.filter(d => d !== dom) : [];
+  const nbEJ = c.ejs.length;
+  const progBadge = state.profil === 'DISP' && !state.sous ? `<span class="badge b-prog">${c.progs.join(' + ')}</span>` : '';
+  const row = (l, v, cls='') => v ? `<dt>${l}</dt><dd class="${cls}" title="${esc(v)}">${hl(v, t)}</dd>` : '';
+  return `<button type="button" class="card" data-k="${esc(c.key)}" style="--c:${teinte(dom || c.domaines[0])}" aria-label="${esc(c.titre)}, ${esc(c.titulaire||'titulaire non renseigné')}, ${esc(c.st.label)}">
+    ${kicker ? `<span class="kick">${hl(kicker, t)}</span>` : ''}
+    <span class="t">${hl(c.titre, t)}</span>
+    <span class="who">${IC_FIRM}${hl(c.titulaire || 'Titulaire non renseigné', t)}</span>
+    ${sitesHtml(c.structures, t)}
+    <dl>
+      ${nbEJ === 1 ? row('N° EJ', c.ejs[0].ej, 'mono') : `<dt>EJ</dt><dd>${nbEJ} engagements juridiques</dd>`}
+      ${row('GM', gmsDom.map(g => `${g} ${c.gmLib[g]||''}`).join(' · '))}
+      ${row('Pouvoir adj.', c.pa)}
+      ${row('Référent', c.referent)}
+    </dl>
+    <span class="foot">
+      <span class="badge ${c.st.cls}">${c.st.label}</span>${progBadge}
+      ${c.mutualise ? '<span class="badge b-mut">Mutualisé PJJ–DISP</span>' : ''}
+      <span>${periode(c.debut, c.fin)}</span>
+    </span>
+    ${autres.length ? `<span class="note">Aussi classé en ${autres.map(d => esc(d)).join(', ')}</span>` : ''}
+  </button>`;
+}
+function render(){
+  renderProfil();
+  const ui = $('#ui');
+  if (!state.profil){
+    ui.querySelectorAll('.row,.kpis,.chips').forEach(e => e.hidden = true);
+    $('#ctrl').hidden = true; $('#list').hidden = false;
+    $('#list').innerHTML = `<div class="hors-grist"><strong>Choisissez votre profil</strong>Gestionnaire PJJ pour les marchés du programme 182, gestionnaire DISP pour les programmes 107 et 912.</div>`;
+    return;
+  }
+  ui.querySelectorAll('.row,.kpis,.chips').forEach(e => e.hidden = false);
+  const ctrlList = controles(); const nc = $('#nctrl'); nc.textContent = ctrlList.length; nc.classList.toggle('zero', !ctrlList.length);
+  document.querySelectorAll('.tab').forEach(b => { const on = b.dataset.tab === state.tab; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+  document.querySelectorAll('.cat-only').forEach(e => e.hidden = state.tab !== 'cat');
+  $('#list').hidden = state.tab !== 'cat'; $('#ctrl').hidden = state.tab !== 'ctrl';
+  if (state.tab === 'ctrl'){ renderCtrl(ctrlList); return; }
+  renderKpis(); renderChips();
+  const t = terms(), list = filtered();
+  $('#live').textContent = plural(list.length, 'marché affiché', 'marchés affichés');
+  if (!list.length){ $('#list').innerHTML = `<p class="empty">Aucun marché ne correspond à ces critères.</p>`; return; }
+  if (state.sort !== 'arbo'){
+    const s = [...list].sort(state.sort === 'fin'
+      ? (a,b) => (a.fin?.getTime() ?? 9e15) - (b.fin?.getTime() ?? 9e15)
+      : (a,b) => a.titulaire.localeCompare(b.titulaire,'fr'));
+    $('#list').innerHTML = `<h2 class="sr">Marchés</h2><div class="cards" style="margin-top:14px">${s.map(c => card(c, t)).join('')}</div>`;
+    return;
+  }
+  const open = t.length > 0 || state.statut || state.doms.size || state.etab;
+  const lib = {}; list.forEach(c => Object.assign(lib, c.domLib));
+  const doms = Object.keys(lib).filter(d => !state.doms.size || state.doms.has(d)).sort((a,b)=>ordre(a).localeCompare(ordre(b)));
+  $('#list').innerHTML = doms.map(d => {
+    const items = list.filter(c => c.domaines.includes(d)).sort((a,b) => a.objet.localeCompare(b.objet,'fr') || a.titre.localeCompare(b.titre,'fr'));
+    if (!items.length) return '';
+    const w = items.filter(c=>c.st.k==='warn').length, b = items.filter(c=>c.st.k==='bad').length;
+    return `<details class="dom" ${open || doms.length === 1 ? 'open' : ''}><summary>${IC_CHEV}
+      <span class="code" style="background:${teinte(d)}" aria-hidden="true">${esc(d)}</span>
+      <h2><span class="sr">Domaine ${esc(d)} : </span>${hl(lib[d], t)}</h2>
+      <span class="count">${w?`<span class="badge b-warn">${w} à renouveler</span>`:''}${b?`<span class="badge b-bad">${plural(b,'expiré')}</span>`:''}<span>${plural(items.length,'marché')}</span></span>
+    </summary><div class="cards">${items.map(c => card(c, t, d)).join('')}</div></details>`;
+  }).join('');
+}
+
+/* ===================== Fiche ===================== */
+function cpBtn(value, label){
+  if (value === '' || value == null) return '';
+  return `<button type="button" class="cp" data-copy="${esc(value)}" data-label="${esc(label)}" aria-label="Copier ${esc(label)}" title="Copier ${esc(label)}">${IC_COPY}</button>`;
+}
+function field(label, value, cls=''){
+  if (value === '' || value == null) return '';
+  return `<div class="field"><dt>${esc(label)}</dt><dd class="${cls}">${esc(value)}</dd>${cpBtn(value, label)}</div>`;
+}
+const imput = p => [p.cf && `CF ${p.cf}`, p.df && `DF ${p.df}`, p.activite && `Act. ${p.activite}`, p.axe && `Axe ${p.axe}`].filter(Boolean).join(' · ');
+const posteCells = p => [p.poste, LIB_PROG[p.programme] || p.programme, p.structure, p.libelle, p.lot, p.gm, p.gm_libelle, p.prestation,
+  p.cf, p.df, p.activite, p.axe, fmt(toDate(p.debut)), fmt(toDate(p.fin)), p.commentaire, p.info];
+const POSTE_HEAD = ['Poste','Programme','Structure','Libellé poste','Lot','GM','Libellé GM','Prestation','Centre financier','Domaine fonctionnel','Activité','Axe','Début','Fin','Commentaire','Info'];
+const tsv = rows => rows.map(r => r.map(c => String(c ?? '').replace(/[\t\n]+/g,' ')).join('\t')).join('\n');
+function ficheTexte(c){
+  const L = []; const add = (l,v) => { if (v) L.push(`${l} : ${v}`); };
+  add('Objet', c.objet); add('Lot', c.lots); add('Référence', c.reference); add('Titulaire', c.titulaire);
+  add('Pouvoir adjudicateur', c.pa); add('Durée', c.duree); add('Période', periode(c.debut, c.fin)); add('Statut', c.st.label);
+  add('Référent acheteur', c.referent); add('Établissements', c.structures.join(', '));
+  c.ejs.forEach(e => { L.push(''); add('N° EJ', e.ej); add('N° fournisseur', e.fournisseur); add('Période', periode(e.debut, e.fin));
+    e.vis.forEach(p => L.push(`  Poste ${p.poste} – ${LIB_PROG[p.programme]||p.programme} – ${p.structure||''} – GM ${p.gm} ${p.gm_libelle||''}${p.prestation?' – '+p.prestation:''}`)); });
+  return L.join('\n');
+}
+function openPanel(key, opener){
+  const c = CARDS.find(x => x.key === key); if (!c) return;
+  current = c; lastFocus = opener || document.activeElement;
+  $('#ph').innerHTML = `<div class="crumb">${c.domaines.map(d => esc(d + ' ' + (c.domLib[d]||''))).join(' · ')}</div>
+    <h2 id="ptitle">${esc(c.titre)}</h2>
+    <div class="badges"><span class="badge ${c.st.cls}">${esc(c.st.label)}</span>${c.progs.map(p => `<span class="badge b-prog">${esc(LIB_PROG[p]||p)}</span>`).join('')}${c.mutualise?'<span class="badge b-mut">Mutualisé PJJ–DISP</span>':''}</div>`;
+  const ejHtml = (e, i) => {
+    const st = statut(e.fin);
+    return `<section class="ej" aria-label="Engagement juridique ${esc(e.ej||'sans numéro')}">
+      <div class="ej-head"><span class="num">EJ ${esc(e.ej || 'non renseigné')}</span>${cpBtn(e.ej, 'N° EJ ' + e.ej)}
+        <span class="badge ${st.cls}">${esc(st.label)}</span><span class="note">${periode(e.debut, e.fin)}</span>
+        ${e.fournisseur ? `<span class="note">Fourn. ${esc(e.fournisseur)}</span>${cpBtn(e.fournisseur, 'N° fournisseur')}` : ''}
+        <span class="sp"></span>
+        <button type="button" class="btn" data-copy-ej="${i}">${IC_COPY}<span>Copier les postes</span></button></div>
+      <div class="tbl-wrap"><table><caption class="sr">Postes de l'EJ ${esc(e.ej)}</caption>
+      <thead><tr><th scope="col">Poste</th><th scope="col">Programme</th><th scope="col">Structure</th><th scope="col">GM · prestation</th><th scope="col">Imputation</th><th scope="col">Période</th><th scope="col"><span class="sr">Copier</span></th></tr></thead><tbody>
+      ${e.vis.map((p,j) => `<tr><td class="num">${esc(p.poste)}</td><td>${esc(p.programme)}</td><td>${esc(p.structure)}${p.libelle?`<br><small>${esc(p.libelle)}</small>`:''}</td>
+        <td><span class="mono">${esc(p.gm)}</span> ${esc(p.gm_libelle||'')}${p.prestation?`<br><small>${esc(p.prestation)}</small>`:''}${p.commentaire?`<br><small>${esc(p.commentaire)}</small>`:''}${p.info?`<br><small>${esc(p.info)}</small>`:''}</td>
+        <td><small>${esc(imput(p))}</small></td>
+        <td class="num">${fmt(toDate(p.debut))}${p.fin?'<br>'+fmt(toDate(p.fin)):''}</td>
+        <td class="act"><button type="button" class="cp" data-copy-row="${i}:${j}" aria-label="Copier la ligne du poste ${esc(p.poste)}" title="Copier la ligne">${IC_COPY}</button></td></tr>`).join('')}
+      </tbody></table></div>
+      ${e.postes.length > e.vis.length ? `<div class="hors">${plural(e.postes.length - e.vis.length, 'autre poste', 'autres postes')} sur ${esc(uniq(e.postes.filter(p => !e.vis.includes(p)).map(p => LIB_PROG[p.programme]||p.programme)).join(', '))}, hors de votre périmètre.</div>` : ''}
+    </section>`;
+  };
+  $('#pb').innerHTML = `
+    <h3>Le marché</h3><dl class="fields">
+      ${field('Objet', c.objet)}${field('Lot / désignation', c.lots)}${field('Référence', c.reference)}
+      ${field('Titulaire', c.titulaire)}${field('Pouvoir adjudicateur', c.pa)}${field('Durée', c.duree)}
+      ${field('Période', periode(c.debut, c.fin))}${field('Établissements', c.structures.join(', '))}
+      ${field('Référent acheteur', c.referent)}${field('Rubrique (ancien tableau)', c.rubrique)}
+    </dl>
+    <h3>${c.ejs.length > 1 ? `Engagements juridiques (${c.ejs.length})` : 'Engagement juridique'}</h3>
+    ${c.ejs.map(ejHtml).join('')}`;
+  $('#copyAll').innerHTML = IC_COPY + '<span class="lbl">Copier la fiche</span>';
+  $('#panel').classList.add('on'); $('#veil').classList.add('on');
+  document.querySelectorAll('.top, main, #ctrl').forEach(e => e.setAttribute('inert',''));
+  setTimeout(() => $('#close').focus(), 50);
+  if (INSIDE) { try { grist.setCursorPos({rowId: c.ejs[0].id}); } catch(e){} }
+}
+function closePanel(){
+  if (!$('#panel').classList.contains('on')) return;
+  $('#panel').classList.remove('on'); $('#veil').classList.remove('on');
+  document.querySelectorAll('.top, main, #ctrl').forEach(e => e.removeAttribute('inert'));
+  (lastFocus && document.contains(lastFocus) ? lastFocus : $('#q'))?.focus(); current = null;
+}
+async function copy(text, btn, label){
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; }
+  catch(e){ const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly','');
+    ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand('copy'); } catch(_){} ta.remove(); }
+  $('#live').textContent = ok ? `Copié : ${label}` : 'Copie impossible';
+  if (ok && btn){ const ic = btn.querySelector('svg'); const old = ic.outerHTML; ic.outerHTML = IC_OK; btn.classList.add('done');
+    setTimeout(() => { const s = btn.querySelector('svg'); if (s) s.outerHTML = old; btn.classList.remove('done'); }, 1300); }
+}
+
+/* ===================== Contrôles ===================== */
+/* Règles recalculées à chaque mise à jour de Grist : une correction enregistrée fait disparaître l'alerte. */
+let NOMEN = null, IGNORES = new Set(), IGNORE_OK = false;
+const PROGS_VALIDES = ['182','107','912'];
+const REGLES = {
+  EJ_VIDE:{ label:'N° EJ manquant', aide:'Saisir le numéro d\'engagement juridique (10 chiffres).' },
+  EJ_FORMAT:{ label:'N° EJ mal formé', aide:'Un n° EJ compte 10 chiffres.' },
+  EJ_DOUBLON:{ label:'Même n° EJ sur plusieurs lignes', aide:'Vérifier s\'il s\'agit de lots distincts ou d\'un doublon de saisie.' },
+  TIT_VIDE:{ label:'Titulaire manquant ou « à venir »', aide:'Saisir le titulaire une fois le marché attribué.' },
+  FOUR_FORMAT:{ label:'N° fournisseur mal formé', aide:'Un n° fournisseur Chorus compte 10 chiffres.' },
+  FIN_VIDE:{ label:'Date de fin manquante', aide:'Saisir la date de fin du marché.' },
+  FIN_AVANT:{ label:'Fin antérieure au début', aide:'Corriger la date de fin.' },
+  GM_VIDE:{ label:'Poste sans GM', aide:'Saisir le groupe de marchandises (ex. 37.01.01).' },
+  GM_INCONNU:{ label:'GM absent de la nomenclature', aide:'Choisir un GM de la nomenclature.' },
+  PROG_VIDE:{ label:'Programme manquant', aide:'Indiquer le programme du poste.' }
+};
+const ctrlKey = c => `${c.code}:${c.table}:${c.rowId}`;
+function controles(){
+  const sc = scope(), out = [];
+  const inScope = p => sc.includes(p.programme) || !PROGS_VALIDES.includes(p.programme);
+  const parEJ = {};
+  EJS.forEach(e => { if (e.ej) (parEJ[e.ej] = parEJ[e.ej] || []).push(e); });
+  EJS.forEach(e => {
+    const vis = e.postes.filter(inScope);
+    if (!vis.length) return;
+    const base = { ej:e, table:'Marches', rowId:e.id, src:e.sources };
+    const add = (code, field, type, value, extra={}) => out.push({ ...base, code, field, type, value, ...extra });
+    if (!e.ej) add('EJ_VIDE', 'N_EJ', 'text', '');
+    else if (!/^\d{10}$/.test(e.ej)) add('EJ_FORMAT', 'N_EJ', 'text', e.ej);
+    else if (parEJ[e.ej].length > 1) add('EJ_DOUBLON', null, null, e.ej, { detail:`${parEJ[e.ej].length} lignes : ` + parEJ[e.ej].map(x => x.lots || x.reference || x.objet).join(' | ') });
+    if (!e.titulaire || /venir/i.test(e.titulaire)) add('TIT_VIDE', 'Titulaire', 'text', /venir/i.test(e.titulaire) ? '' : e.titulaire);
+    if (e.fournisseur && !/^\d{10}$/.test(e.fournisseur)) add('FOUR_FORMAT', 'N_fournisseur', 'text', e.fournisseur);
+    if (!e.fin) add('FIN_VIDE', 'Fin', 'date', '');
+    else if (e.debut && e.fin < e.debut) add('FIN_AVANT', 'Fin', 'date', e.fin);
+    vis.forEach(p => {
+      if (p.id == null) return;
+      const pb = { ej:e, table:'Postes', rowId:p.id, poste:p, src:p.source ? `${p.source}${p.ligne ? ':' + p.ligne : ''}` : e.sources };
+      if (!p.gm) out.push({ ...pb, code:'GM_VIDE', field:'GM', type:'gm', value:'' });
+      else if (!p.gm_libelle || (NOMEN && !NOMEN.has(p.gm))) out.push({ ...pb, code:'GM_INCONNU', field:'GM', type:'gm', value:p.gm });
+      if (!PROGS_VALIDES.includes(p.programme)) out.push({ ...pb, code:'PROG_VIDE', field:'Programme', type:'prog', value:p.programme });
+    });
+  });
+  const t = terms();
+  return out.filter(c => !IGNORES.has(ctrlKey(c)) && (!t.length || t.every(x => norm([c.ej.objet, c.ej.lots, c.ej.titulaire, c.ej.ej, c.value, c.src, c.poste?.structure].join(' ')).includes(x))));
+}
+function srcHtml(src){
+  if (!src) return '';
+  return String(src).split(/\s*;\s*/).filter(Boolean).map(s => {
+    const m = s.match(/^(.*):([\d-]+)$/);
+    return m ? `<span class="src" title="Tableau d'origine">Onglet ${esc(m[1])} · ligne${m[2].includes('-')?'s':''} ${esc(m[2])}</span>` : `<span class="src">${esc(s)}</span>`;
+  }).join('');
+}
+function editeur(c, i){
+  const id = `fx-${i}`, lab = `<label class="sr" for="${id}">${esc(REGLES[c.code].label)} : nouvelle valeur</label>`;
+  if (!c.field) return `<span class="note">À vérifier dans le tableau d'origine.</span>`;
+  let input;
+  if (c.type === 'date') input = `<input id="${id}" type="date" value="${c.value instanceof Date ? c.value.toISOString().slice(0,10) : ''}">`;
+  else if (c.type === 'prog') input = `<select id="${id}"><option value="">Choisir…</option>${PROGS_VALIDES.map(x => `<option value="${x}">${esc(LIB_PROG[x])}</option>`).join('')}</select>`;
+  else if (c.type === 'gm') input = `<input id="${id}" list="gmlist" value="${esc(c.value)}" placeholder="37.01.01" autocomplete="off">`;
+  else input = `<input id="${id}" type="text" value="${esc(c.value)}" ${c.field.startsWith('N_') ? 'inputmode="numeric" placeholder="10 chiffres"' : ''}>`;
+  return `${lab}${input}<button type="button" class="btn primary" data-fix="${i}">Enregistrer</button>`;
+}
+let CTRL_VIEW = [];
+function renderCtrl(list){
+  CTRL_VIEW = list;
+  $('#live').textContent = plural(list.length, 'contrôle à traiter', 'contrôles à traiter');
+  if (!list.length){ $('#ctrl').innerHTML = `<p class="empty">Aucune anomalie dans votre périmètre.</p>`; return; }
+  const groupes = {}; list.forEach((c, i) => (groupes[c.code] = groupes[c.code] || []).push([c, i]));
+  $('#ctrl').innerHTML = `<p class="ctrl-intro">Les anomalies sont recalculées à chaque modification du document. Corrigez directement ici : l'enregistrement met à jour Grist, et la ligne disparaît une fois corrigée.${IGNORE_OK ? ' « Ignorer » sert pour les cas vérifiés et normaux.' : ''}</p>` +
+  Object.keys(REGLES).filter(k => groupes[k]).map(k => `<section class="cgroup" aria-labelledby="cg-${k}"><h2 id="cg-${k}">${esc(REGLES[k].label)} <span class="badge b-bad">${groupes[k].length}</span><span class="note">${esc(REGLES[k].aide)}</span></h2>
+    ${groupes[k].map(([c, i]) => `<div class="crow">
+      <div class="what"><b>${esc(c.ej.lots || c.ej.reference || c.ej.objet || 'Sans objet')}</b>
+        <span class="note">${esc(c.ej.objet !== (c.ej.lots || c.ej.reference || c.ej.objet) ? c.ej.objet + ' · ' : '')}${esc(c.ej.titulaire || 'Titulaire non renseigné')}${c.ej.ej ? ' · EJ ' + esc(c.ej.ej) : ''}${c.poste ? ` · poste ${esc(c.poste.poste)}${c.poste.structure ? ' (' + esc(c.poste.structure) + ')' : ''} · ${esc(c.poste.programme || 'programme ?')}` : ''}</span>
+        ${c.detail ? `<span class="note">${esc(c.detail)}</span>` : ''}
+        ${srcHtml(c.src)}</div>
+      <div class="fix">${editeur(c, i)}${IGNORE_OK ? `<button type="button" class="btn ghost" data-ign="${i}">Ignorer</button>` : ''}<span class="msg" id="msg-${i}" role="status"></span></div>
+    </div>`).join('')}</section>`).join('');
+}
+function versGrist(c, raw){
+  if (c.type === 'date'){ if (!raw) return null; const [y,m,d] = raw.split('-').map(Number); return Date.UTC(y, m-1, d) / 1000; }
+  return String(raw).trim();
+}
+async function corriger(i){
+  const c = CTRL_VIEW[i]; if (!c) return;
+  const el = document.getElementById(`fx-${i}`), msg = document.getElementById(`msg-${i}`), v = el.value.trim();
+  const bad = (c.field === 'N_EJ' || c.field === 'N_fournisseur') && !/^\d{10}$/.test(v) ? 'Saisissez 10 chiffres.'
+    : c.type === 'gm' && NOMEN && !NOMEN.has(v) ? 'Ce GM n\'est pas dans la nomenclature.'
+    : !v ? 'Saisissez une valeur.' : '';
+  if (bad){ msg.className = 'msg err'; msg.textContent = bad; el.setAttribute('aria-invalid','true'); el.focus(); return; }
+  el.removeAttribute('aria-invalid');
+  if (!INSIDE){ msg.className = 'msg err'; msg.textContent = 'Disponible uniquement dans Grist.'; return; }
+  try {
+    await grist.docApi.applyUserActions([['UpdateRecord', c.table, c.rowId, { [c.field]: versGrist(c, v) }]]);
+    msg.className = 'msg ok'; msg.textContent = 'Enregistré'; $('#live').textContent = 'Correction enregistrée';
+  } catch(e){
+    msg.className = 'msg err';
+    msg.textContent = /formula/i.test(String(e)) ? 'Cette colonne est calculée par une formule : corrigez la source.' : 'Enregistrement refusé (droits d\'écriture ?).';
+  }
+}
+async function ignorer(i){
+  const c = CTRL_VIEW[i]; if (!c || !INSIDE) return;
+  try { await grist.docApi.applyUserActions([['AddRecord', 'Controles_ignores', null, { Cle: ctrlKey(c), Controle: REGLES[c.code].label, Date: Date.now()/1000 }]]);
+    IGNORES.add(ctrlKey(c)); render(); $('#live').textContent = 'Contrôle ignoré'; }
+  catch(e){ const msg = document.getElementById(`msg-${i}`); msg.className = 'msg err'; msg.textContent = 'Impossible d\'enregistrer (droits ?).'; }
+}
+async function chargerReferentiels(){
+  if (!INSIDE) return;
+  try { const n = await grist.docApi.fetchTable('Nomenclature_GM');
+    NOMEN = new Set(n.GM.map(String));
+    $('#gmlist').innerHTML = n.GM.map((g,i) => `<option value="${esc(g)}">${esc(n.Libelle_GM?.[i] || '')}</option>`).join(''); } catch(e){}
+  try { const t = await grist.docApi.fetchTable('Controles_ignores'); IGNORES = new Set((t.Cle || []).map(String)); IGNORE_OK = true; } catch(e){ IGNORE_OK = false; }
+  render();
+}
+$('#ctrl').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.fix != null) corriger(+b.dataset.fix);
+  else if (b.dataset.ign != null) ignorer(+b.dataset.ign);
+});
+$('#ctrl').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id?.startsWith('fx-')){ e.preventDefault(); corriger(+e.target.id.slice(3)); } });
+document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (!b) return; state.tab = b.dataset.tab; render(); b.focus(); });
+document.querySelector('.tabs').addEventListener('keydown', e => {
+  if (!['ArrowLeft','ArrowRight'].includes(e.key)) return;
+  state.tab = state.tab === 'cat' ? 'ctrl' : 'cat'; render(); $(`#tab-${state.tab}`).focus(); });
+
+/* ===================== Événements ===================== */
+function refresh(){ CARDS = buildCards(); fillEtabs(); render(); }
+$('#profil').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+  state.profil = b.dataset.p; state.sous = ''; state.doms.clear(); state.statut = null; save(); refresh(); b.focus(); });
+$('#sous').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+  state.sous = b.dataset.s; state.doms.clear(); save(); refresh(); b.focus(); });
+let tmr; $('#q').addEventListener('input', e => { clearTimeout(tmr); tmr = setTimeout(() => { state.q = e.target.value; render(); }, 120); });
+$('#q').placeholder = 'Titulaire, n° EJ, GM, objet, établissement…';
+$('#sort').value = state.sort;
+$('#sort').addEventListener('change', e => { state.sort = e.target.value; save(); render(); });
+$('#etab').addEventListener('change', e => { state.etab = e.target.value; render(); });
+$('#kpis').addEventListener('click', e => { const k = e.target.closest('.kpi'); if (!k) return; const v = k.dataset.k || null;
+  state.statut = state.statut === v ? null : v; render(); $(`.kpi[data-k="${v||''}"]`)?.focus(); });
+$('#chips').addEventListener('click', e => {
+  if (e.target.closest('#reset')){ state.doms.clear(); state.statut=null; state.q=''; state.etab=''; $('#q').value=''; $('#etab').value=''; render(); $('#q').focus(); return; }
+  const c = e.target.closest('.chip'); if (!c) return; const d = c.dataset.d;
+  state.doms.has(d) ? state.doms.delete(d) : state.doms.add(d); render(); $(`.chip[data-d="${CSS.escape(d)}"]`)?.focus(); });
+$('#list').addEventListener('click', e => { const c = e.target.closest('.card'); if (c) openPanel(c.dataset.k, c); });
+$('#veil').addEventListener('click', closePanel); $('#close').addEventListener('click', closePanel);
+$('#copyAll').addEventListener('click', e => { if (current) copy(ficheTexte(current), e.currentTarget, 'la fiche complète'); });
+$('#pb').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !current) return;
+  if (b.dataset.copy != null) copy(b.dataset.copy, b, b.dataset.label);
+  else if (b.dataset.copyRow){ const [i,j] = b.dataset.copyRow.split(':').map(Number); copy(tsv([posteCells(current.ejs[i].vis[j])]), b, 'la ligne du poste'); }
+  else if (b.dataset.copyEj != null){ const e2 = current.ejs[+b.dataset.copyEj]; copy(tsv([['N° EJ', ...POSTE_HEAD], ...e2.vis.map(p => [e2.ej, ...posteCells(p)])]), b, 'les postes de l\'EJ'); }
+});
+document.addEventListener('keydown', e => {
+  const open = $('#panel').classList.contains('on');
+  if (e.key === 'Escape' && open){ closePanel(); return; }
+  if (open && e.key === 'Tab'){
+    const f = [...$('#panel').querySelectorAll('button,[href],input,select,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled);
+    if (!f.length) return; const first = f[0], last = f[f.length-1];
+    if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
+  if (!open && e.key === '/' && !['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)){ e.preventDefault(); $('#q').focus(); }
+});
+function load(records){ EJS = records.map(normaliseEJ); refresh(); }
+
+/* ===================== Logo et police depuis Grist ===================== */
+const ids = v => Array.isArray(v) ? v.filter(x => typeof x === 'number') : (typeof v === 'number' ? [v] : []);
+function graisse(nom){
+  const n = norm(nom);
+  const w = /thin|hairline/.test(n) ? 100 : /extra.?light|ultra.?light/.test(n) ? 200 : /light/.test(n) ? 300
+          : /medium/.test(n) ? 500 : /semi.?bold|demi/.test(n) ? 600 : /extra.?bold|heavy|black/.test(n) ? 800
+          : /bold/.test(n) ? 700 : 400;
+  return { weight:String(w), style:/italic|oblique/.test(n) ? 'italic' : 'normal' };
+}
+async function chargerRessources(){
+  try {
+    const ctx = await grist.docApi.fetchTable(RESSOURCES.table);
+    if (!ctx.id || !ctx.id.length) return;
+    const col = k => (ctx[RESSOURCES[k]] || [])[0];
+    const texte = col('mention'); if (texte) $('#mention').textContent = texte;
+    const logoIds = ids(col('logo')), policeIds = ids(col('police'));
+    if (!logoIds.length && !policeIds.length) return;
+    const att = await grist.docApi.fetchTable('_grist_Attachments');
+    const nomDe = id => att.fileName?.[att.id.indexOf(id)] || '';
+    const { token, baseUrl } = await grist.docApi.getAccessToken({ readOnly:true });
+    const url = id => `${baseUrl}/attachments/${id}/download?auth=${token}`;
+    if (logoIds.length){ const blob = await (await fetch(url(logoIds[0]))).blob(); const img = $('#logo'); img.src = URL.createObjectURL(blob); img.hidden = false; }
+    for (const id of policeIds){
+      const nom = nomDe(id); if (nom && !/\.(woff2?|ttf|otf)$/i.test(nom)) continue;
+      const buf = await (await fetch(url(id))).arrayBuffer();
+      const f = new FontFace('Marianne', buf, { ...graisse(nom), display:'swap' }); await f.load(); document.fonts.add(f);
+    }
+  } catch(e){ console.warn('Ressources Grist non chargées :', e); }
+}
+
+/* ===================== Démarrage ===================== */
+$('#mention').textContent = MENTION;
+const INSIDE = window.self !== window.top && typeof grist !== 'undefined';
+if (INSIDE){
+  grist.ready({ requiredAccess:'full' });
+  chargerRessources(); chargerReferentiels();
+  grist.onRecords(async recs => {
+    if (recs.length && !(COLS.postes in recs[0]) && !POSTES_TABLE){
+      try { const t = await grist.docApi.fetchTable('Postes');
+        POSTES_TABLE = t.id.map((id,i) => Object.fromEntries(Object.keys(t).map(k => [k, t[k][i]]))); }
+      catch(e){ POSTES_TABLE = []; }
+    }
+    load(recs);
+  });
+} else {
+  $('#ui').hidden = true;
+  $('#list').innerHTML = `<div class="hors-grist"><strong>Ce widget s'utilise dans Grist.</strong>Ajoutez une vue « Personnalisée » sur la table Marches et collez l'adresse de cette page.</div>`;
+}
+</script>
+</body>
+</html>
