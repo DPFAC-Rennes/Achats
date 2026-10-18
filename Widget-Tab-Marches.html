@@ -237,7 +237,7 @@ td small{color:var(--muted)}
 
 <script>
 /* ===================== Configuration ===================== */
-const VERSION = '2026-10-18 · v8';
+const VERSION = '2026-10-18 · v9';
 const ALERTE_JOURS = 183;
 const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
 const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
@@ -314,7 +314,9 @@ function normaliseEJ(rec){
     gm_libelle:p.Libelle_GM, segment:p.Segment, segment_libelle:p.Libelle_segment, domaine:p.Domaine_achat,
     domaine_libelle:p.Libelle_domaine, cf:p.Centre_financier, df:p.Domaine_fonctionnel, activite:p.Activite,
     axe:p.Axe, prestation:p.Prestation, duree:p.Duree, debut:p.Debut, fin:p.Fin, commentaire:p.Commentaire, info:p.Info }));
-  postes.forEach(p => { const pm = String(p.programme ?? '').match(/(912|107|182)/); p.programme = pm ? pm[1] : String(p.programme ?? '').trim(); p.domaine = String(p.domaine || '') || '—';
+  postes.forEach(p => { let pm = String(p.programme ?? '').match(/(912|107|182)/);
+    if (!pm) for (const x of [p.df, p.cf, p.activite]){ const m = String(x ?? '').match(/^\D*?0?(912|107|182)/); if (m){ pm = m; break; } }
+    p.programme = pm ? pm[1] : ''; p.domaine = String(p.domaine || '') || '—';
     if (p.domaine === '—') p.domaine_libelle = 'Non classé (GM à renseigner)'; p.gm = String(p.gm ?? ''); });
   return { id:rec.id, objet:g('objet'), lots:g('lots'), reference:g('reference'), titulaire:g('titulaire'),
     fournisseur:String(g('fournisseur')), ej:String(g('ej')), pa:g('pa'), duree:g('duree'),
@@ -457,6 +459,7 @@ function render(){
       const progs = {}; EJS.forEach(e => e.postes.forEach(p => progs[p.programme || '(vide)'] = (progs[p.programme || '(vide)'] || 0) + 1));
       const cause = !EJS.length ? 'Aucune ligne reçue de la table Marches : vérifier que la vue personnalisée est branchée sur <b>Marches</b> et que l\'accès <b>complet</b> est accepté.'
         : !nbPostes ? 'Les EJ sont reçus mais <b>aucun poste n\'y est rattaché</b>. Dans la table Postes, passer la colonne <b>Marche</b> en type <i>Référence → Marches</i> (colonne affichée ID_marche), et vérifier la formule <b>Postes_json</b>.'
+        : !PROG_COLONNE ? 'Les postes ne portent <b>aucun programme</b> (182, 107 ou 912). Ce document a été créé avec l\'<b>ancienne version</b> du fichier d\'import, qui ne contenait que la PJJ (86 EJ). Réimportez la dernière version de <b>Marches_import_Grist.xlsx</b> (384 EJ, 1 174 postes).'
         : `Aucun poste ne porte les programmes ${esc(scope().join(', '))}.`;
       $('#list').innerHTML = `<div class="hors-grist"><strong>Aucun marché à afficher</strong>${cause}
         <p class="note" style="margin-top:14px">Reçu : ${EJS.length} EJ · ${nbPostes} postes · programmes trouvés : ${esc(Object.entries(progs).map(([k,v]) => k + ' (' + v + ')').join(', ') || 'aucun')}</p></div>`;
@@ -567,7 +570,7 @@ async function copy(text, btn, label){
 
 /* ===================== Contrôles ===================== */
 /* Règles recalculées à chaque mise à jour de Grist : une correction enregistrée fait disparaître l'alerte. */
-let NOMEN = null, IGNORES = new Set(), IGNORE_OK = false;
+let NOMEN = null, IGNORES = new Set(), IGNORE_OK = false, PROG_COLONNE = true;
 const PROGS_VALIDES = ['182','107','912'];
 const REGLES = {
   EJ_VIDE:{ label:'N° EJ manquant', aide:'Saisir le numéro d\'engagement juridique (10 chiffres).' },
@@ -604,7 +607,7 @@ function controles(){
       const pb = { ej:e, table:'Postes', rowId:p.id, poste:p, src:p.source ? `${p.source}${p.ligne ? ':' + p.ligne : ''}` : e.sources };
       if (!p.gm) out.push({ ...pb, code:'GM_VIDE', field:'GM', type:'gm', value:'' });
       else if (!p.gm_libelle || (NOMEN && !NOMEN.has(p.gm))) out.push({ ...pb, code:'GM_INCONNU', field:'GM', type:'gm', value:p.gm });
-      if (!PROGS_VALIDES.includes(p.programme)) out.push({ ...pb, code:'PROG_VIDE', field:'Programme', type:'prog', value:p.programme });
+      if (PROG_COLONNE && !PROGS_VALIDES.includes(p.programme)) out.push({ ...pb, code:'PROG_VIDE', field:'Programme', type:'prog', value:p.programme });
     });
   });
   const t = terms();
@@ -729,7 +732,12 @@ document.addEventListener('keydown', e => {
   }
   if (!open && e.key === '/' && !['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)){ e.preventDefault(); $('#q').focus(); }
 });
-function load(records){ EJS = records.map(normaliseEJ); refresh(); }
+function load(records){
+  EJS = records.map(normaliseEJ);
+  const tous = EJS.flatMap(e => e.postes);
+  PROG_COLONNE = tous.some(p => p.programme);
+  if (tous.length && !PROG_COLONNE) diag('Les postes n\'ont aucun programme : ce document a été créé avec l\'ancien fichier d\'import (PJJ seul, 86 EJ). Réimportez la dernière version de Marches_import_Grist.xlsx (384 EJ, colonne Postes.Programme).');
+  refresh(); }
 
 /* ===================== Logo et police depuis Grist ===================== */
 const ids = v => Array.isArray(v) ? v.filter(x => typeof x === 'number') : (typeof v === 'number' ? [v] : []);
@@ -827,5 +835,6 @@ if (INSIDE){
 </script>
 </body>
 </html>
+
 
 
