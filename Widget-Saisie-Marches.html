@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saisie et suivi des marchés</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --ink:#161a21; --muted:#4f5868; --line:#d9dde3; --soft:#eef0f4;
+  --accent:#1f3d7a; --accent-bg:#e5ebf7; --focus:#1f5bd6;
+  --ok:#17663b; --ok-bg:#e1f2e8; --warn:#8a4b00; --warn-bg:#fcecd2;
+  --bad:#a1170f; --bad-bg:#fbe3e1; --na:#4f5868; --na-bg:#e9ebef; --hl:#ffe680;
+  --mut:#5a3d8a; --mut-bg:#ece5f7;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171c; --panel:#1c2027; --ink:#eceff4; --muted:#a8b0bd; --line:#323843; --soft:#262b34;
+    --accent:#9ab8f2; --accent-bg:#22314d; --focus:#8fb4ff;
+    --ok:#7ddba5; --ok-bg:#173a27; --warn:#f5c063; --warn-bg:#3f2d0f;
+    --bad:#ff9a90; --bad-bg:#46211e; --na:#a8b0bd; --na-bg:#2b3039; --hl:#6b5a00;
+    --mut:#c9b3f0; --mut-bg:#33284a; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171c; --panel:#1c2027; --ink:#eceff4; --muted:#a8b0bd; --line:#323843; --soft:#262b34;
+  --accent:#9ab8f2; --accent-bg:#22314d; --focus:#8fb4ff;
+  --ok:#7ddba5; --ok-bg:#173a27; --warn:#f5c063; --warn-bg:#3f2d0f;
+  --bad:#ff9a90; --bad-bg:#46211e; --na:#a8b0bd; --na-bg:#2b3039; --hl:#6b5a00;
+  --mut:#c9b3f0; --mut-bg:#33284a; --shadow:none;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 Marianne,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+body{display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* En-tête (identique au catalogue) */
+.brand{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+.brand h1{margin:0;font-size:16px;line-height:1.2}
+.brand .titre p{margin:1px 0 0;font-size:12px;color:var(--muted)}
+.sign{display:flex;align-items:center;gap:12px;margin:0;flex:none}
+.sign img{height:40px;width:auto;display:block}
+.sign .vl{width:3px;align-self:stretch;min-height:34px;background:#E1772E;flex:none}
+.sign figcaption{font-size:12px;line-height:1.35;color:var(--ink);max-width:170px}
+.sign:not(.has-logo) .vl{display:none}
+.diag{margin:0;padding:6px 16px;font-size:12.5px;color:var(--warn);background:var(--warn-bg);flex:none}
+
+/* Barre d'outils */
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:2px;gap:2px}
+.seg button{border:0;background:none;border-radius:7px;padding:5px 11px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.seg button small{font-weight:400;opacity:.85}
+.search{flex:1 1 200px;position:relative;min-width:160px}
+.search input{width:100%;height:34px;padding:0 10px 0 32px;border:1px solid var(--line);border-radius:9px;background:var(--panel)}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
+select{height:34px;padding:0 6px;border:1px solid var(--line);border-radius:9px;background:var(--panel)}
+.btn{border:1px solid var(--line);background:var(--soft);border-radius:8px;height:34px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.danger{color:var(--bad);border-color:var(--bad);background:var(--panel)}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Mise en page liste / formulaire */
+.split{flex:1;min-height:0;display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr)}
+.liste{border-right:1px solid var(--line);overflow:auto;background:var(--bg)}
+.liste .meta{font-size:12px;color:var(--muted);padding:8px 12px 4px}
+.item{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:9px 12px;cursor:pointer;line-height:1.35}
+.item:hover{background:var(--soft)}
+.item[aria-current="true"]{background:var(--panel);box-shadow:inset 4px 0 0 var(--accent)}
+.item b{display:block;font-size:13.5px}
+.item .s{font-size:12px;color:var(--muted)}
+.item.arch b{color:var(--muted)}
+.badge{border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:700;white-space:nowrap;display:inline-block}
+.b-ok{color:var(--ok);background:var(--ok-bg)} .b-warn{color:var(--warn);background:var(--warn-bg)}
+.b-bad{color:var(--bad);background:var(--bad-bg)} .b-na{color:var(--na);background:var(--na-bg)}
+.b-arch{color:var(--muted);background:var(--soft);border:1px solid var(--line)}
+.b-prog{color:var(--accent);background:var(--accent-bg)}
+.form{overflow:auto;display:flex;flex-direction:column;min-width:0}
+.form .inner{padding:14px 18px 20px;flex:1}
+.vide{color:var(--muted);text-align:center;padding:60px 20px}
+.fhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fhead h2{margin:0;font-size:18px}
+.etat{font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;color:var(--warn);background:var(--warn-bg)}
+.etat.ok{color:var(--ok);background:var(--ok-bg)}
+h3{margin:18px 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px 12px}
+.grid .large{grid-column:1/-1}
+.fl label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.fl input,.fl textarea,.fl select{width:100%;height:34px;padding:0 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.fl textarea{height:58px;padding:7px 9px;resize:vertical}
+.fl input[readonly]{background:var(--soft);color:var(--muted)}
+.fl .err{display:block;font-size:12px;color:var(--bad);margin-top:3px}
+[aria-invalid="true"]{border-color:var(--bad)!important;box-shadow:0 0 0 1px var(--bad)}
+.tbl-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;background:var(--panel)}
+table{border-collapse:collapse;font-size:13px;min-width:100%}
+th,td{padding:4px 5px;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+thead th{border-top:0;background:var(--soft);color:var(--muted);font-size:11.5px;font-weight:600;white-space:nowrap;position:sticky;top:0}
+td input,td select{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;background:var(--panel);width:100%}
+td.w-xs{width:60px} td.w-s{min-width:80px} td.w-m{min-width:130px} td.w-l{min-width:180px}
+tr.suppr td{opacity:.45;text-decoration:line-through}
+tr.nouveau td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
+.icon{width:30px;height:30px;border:1px solid transparent;background:none;border-radius:7px;cursor:pointer;display:grid;place-items:center;color:var(--muted)}
+.icon:hover{background:var(--soft);border-color:var(--line);color:var(--bad)}
+.add{margin-top:8px}
+.communs{border:1px solid var(--line);border-radius:10px;background:var(--soft);padding:10px 12px;margin-bottom:10px}
+.communs .t{font-size:12.5px;color:var(--muted);margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.communs .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.outils{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
+.outils .sp{flex:1}
+.lien{border:0;background:none;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:2px 4px}
+.bulk{display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--accent-bg);border:1px solid var(--accent);border-radius:10px;padding:6px 10px;margin-bottom:8px;font-size:13px}
+.bulk select,.bulk input{height:30px;border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:0 6px}
+.bulk .btn{height:30px}
+th .fd{border:0;background:none;cursor:pointer;color:var(--accent);padding:0 0 0 4px;font-size:12px}
+td.ck,th.ck{width:30px;text-align:center}
+.gen label{display:block;font-size:12.5px;color:var(--muted);margin:8px 0 3px}
+.gen textarea,.gen input,.gen select{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--panel)}
+.gen textarea{height:84px}
+.gen .r2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gen .apercu{margin-top:8px;font-size:12.5px;color:var(--accent);font-weight:600}
+.actions{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.actions .sp{flex:1}
+.msg{font-size:12.5px} .msg.ok{color:var(--ok)} .msg.err{color:var(--bad)}
+.note{font-size:12px;color:var(--muted)}
+.archbox{border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:8px 12px;margin-top:10px;font-size:13px}
+/* Dialogue */
+dialog{border:1px solid var(--line);border-radius:14px;padding:0;max-width:520px;width:calc(100% - 32px);background:var(--panel);color:var(--ink)}
+dialog::backdrop{background:rgba(10,14,20,.45)}
+dialog .dh{padding:14px 18px 6px;font-weight:700;font-size:16px}
+dialog .db{padding:4px 18px 10px;font-size:13.5px}
+dialog .db textarea{width:100%;height:70px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--panel)}
+dialog .df{padding:10px 18px 14px;display:flex;justify-content:flex-end;gap:8px}
+.recap{background:var(--soft);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13px}
+@media (max-width:760px){ .split{grid-template-columns:1fr} .liste{max-height:40vh;border-right:0;border-bottom:1px solid var(--line)} .sign figcaption{display:none} }
+</style>
+</head>
+<body>
+<header class="brand">
+  <div class="titre"><h1>Saisie et suivi des marchés</h1><p>Réservé à l'équipe du pôle achats</p></div>
+  <figure class="sign" id="sign"><img id="logo" alt="Ministère de la Justice – Secrétariat général" hidden><span class="vl" aria-hidden="true"></span><figcaption id="mention"></figcaption></figure>
+</header>
+<p id="diag" class="diag" role="status" hidden></p>
+<div class="bar">
+  <div class="search" role="search">
+    <label for="q" class="sr">Rechercher</label>
+    <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="Objet, titulaire, n° EJ, référence…" autocomplete="off">
+  </div>
+  <div class="seg" id="vue" role="group" aria-label="Afficher">
+    <button type="button" data-v="cours" aria-pressed="true">En cours <small id="n-cours"></small></button>
+    <button type="button" data-v="arch" aria-pressed="false">Archivés <small id="n-arch"></small></button>
+    <button type="button" data-v="retirer" aria-pressed="false">À retirer <small id="n-retirer"></small></button>
+  </div>
+  <label for="prog" class="sr">Programme</label>
+  <select id="prog"><option value="">Tous programmes</option><option value="182">182 · PJJ</option><option value="107">107 · DISP</option><option value="912">912 · Cantine</option></select>
+  <button type="button" class="btn primary" id="nouveau"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg>Nouveau marché</button>
+</div>
+<div class="split">
+  <nav class="liste" id="liste" aria-label="Liste des marchés"></nav>
+  <section class="form" id="form" aria-live="polite"><div class="vide">Choisissez un marché dans la liste, ou créez-en un.</div></section>
+</div>
+<p id="live" class="sr" aria-live="polite"></p>
+<dialog id="dlg" aria-labelledby="dlg-t"><form method="dialog">
+  <div class="dh" id="dlg-t"></div><div class="db" id="dlg-b"></div>
+  <div class="df"><button class="btn" value="non" id="dlg-non">Annuler</button><button class="btn primary" value="oui" id="dlg-oui">Confirmer</button></div>
+</form></dialog>
+
+<script>
+/* ===================== Configuration ===================== */
+const VERSION = 'saisie · 2026-10-18 · v1';
+const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
+const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
+const ALERTE_JOURS = 183;
+const T = { marches:'Marches', postes:'Postes', nomen:'Nomenclature_GM', retirer:'A_retirer' };
+const CHAMPS_MARCHE = [  // [colonne, libellé, type, largeur]
+  ['ID_marche','Identifiant','auto'], ['Objet','Objet du marché','text','large'], ['Lots','Lot / désignation','text'],
+  ['Reference','Référence','text'], ['Titulaire','Titulaire','text'], ['N_fournisseur','N° fournisseur','num10'],
+  ['N_EJ','N° EJ','num10'], ['PA','Pouvoir adjudicateur','text'], ['Duree','Durée','text'],
+  ['Debut','Début','date'], ['Fin','Fin','date'], ['Referent','Référent acheteur','text'], ['Rubrique','Rubrique','text'],
+  ['Commentaires','Commentaires','area','large'], ['Infos','Infos (flux, BC…)','area','large']
+];
+const CHAMPS_POSTE = [   // [colonne, libellé, type, classe]
+  ['Poste','N°','int','w-xs'], ['Programme','Prog.','prog','w-s'], ['Structure','Structure','text','w-m'], ['Lot','Lot','text','w-m'],
+  ['GM','GM','gm','w-s'], ['Prestation','Prestation','text','w-l'], ['Centre_financier','Centre fin.','text','w-s'],
+  ['Domaine_fonctionnel','Dom. fonct.','text','w-s'], ['Activite','Activité','text','w-m'], ['Axe','Axe','text','w-m'],
+  ['Debut','Début','date','w-s'], ['Fin','Fin','date','w-s'], ['Commentaire','Commentaire','text','w-l']
+];
+const DATES = new Set(['Debut','Fin','Archive_le','Retire_le']);
+
+/* ===================== Utilitaires ===================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const uniq = a => [...new Set(a.filter(x => x !== '' && x != null))];
+function toDate(v){
+  if (v == null || v === '') return null;
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  if (typeof v === 'number') return new Date(v * 1000);
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return new Date(Date.UTC(+m[1], +m[2]-1, +m[3]));
+  const d = new Date(v); return isNaN(d) ? null : d;
+}
+const isoDate = v => { const d = toDate(v); return d ? new Date(d.getTime() - d.getTimezoneOffset()*0 ).toISOString().slice(0,10) : ''; };
+const fmt = v => { const d = toDate(v); return d ? d.toLocaleDateString('fr-FR', {timeZone:'UTC'}) : ''; };
+function statut(fin){
+  const f = toDate(fin); if (!f) return {cls:'b-na', label:'Sans fin'};
+  const j = Math.round((f - Date.now()) / 864e5);
+  return j < 0 ? {cls:'b-bad', label:'Expiré'} : j <= ALERTE_JOURS ? {cls:'b-warn', label:'À renouveler'} : {cls:'b-ok', label:'Actif'};
+}
+const progDe = p => { for (const x of [p.Programme, p.Domaine_fonctionnel, p.Centre_financier, p.Activite]){ const m = String(x ?? '').match(/(912|107|182)/); if (m) return m[1]; } return ''; };
+
+/* ===================== État ===================== */
+let MARCHES = [], POSTES = [], RETIRES = [], NOMEN = null, MCOLS = new Set(), PCOLS = new Set(), NUMCOL = {}, REF_POSTES = true;
+const st = { vue:'cours', q:'', prog:'', sel:null, brouillon:null, sale:false, toutesCols:false };
+
+/* ===================== Lecture ===================== */
+const lignes = t => (t && t.id ? t.id.map((id,i) => Object.fromEntries(Object.keys(t).map(k => [k, t[k][i]]))) : []);
+function typesNum(rows, table){
+  const out = {};
+  if (!rows.length) return out;
+  Object.keys(rows[0]).forEach(k => { const v = rows.map(r => r[k]).filter(x => x !== '' && x != null);
+    out[k] = v.length > 0 && v.every(x => typeof x === 'number') && !DATES.has(k); });
+  NUMCOL[table] = out;
+}
+async function chargerPostes(){
+  try { POSTES = lignes(await grist.docApi.fetchTable(T.postes)); PCOLS = new Set(POSTES.length ? Object.keys(POSTES[0]) : CHAMPS_POSTE.map(c => c[0]).concat(['Marche']));
+    typesNum(POSTES, T.postes);
+    REF_POSTES = !POSTES.length || POSTES.some(p => typeof p.Marche === 'number');
+  } catch(e){ POSTES = []; diag('Table Postes illisible : accorder l\'« Accès complet au document » au widget.'); }
+}
+async function chargerRetires(){ try { RETIRES = lignes(await grist.docApi.fetchTable(T.retirer)); } catch(e){ RETIRES = []; } }
+async function chargerNomen(){
+  try { const n = await grist.docApi.fetchTable(T.nomen); NOMEN = new Map(n.GM.map((g,i) => [String(g), { Libelle_GM:n.Libelle_GM?.[i]||'', Segment:n.Segment?.[i]||'', Libelle_segment:n.Libelle_segment?.[i]||'', Domaine_achat:n.Domaine?.[i]||'', Libelle_domaine:n.Libelle_domaine?.[i]||'' }]));
+    if (!$('#gmlist')){ const dl = document.createElement('datalist'); dl.id = 'gmlist'; document.body.appendChild(dl); }
+    $('#gmlist').innerHTML = [...NOMEN].map(([g,v]) => `<option value="${esc(g)}">${esc(v.Libelle_GM)}</option>`).join('');
+  } catch(e){ NOMEN = null; }
+}
+const postesDe = m => POSTES.filter(p => REF_POSTES ? p.Marche === m.id : String(p.Marche) === String(m.ID_marche));
+
+/* ===================== Liste ===================== */
+function visibles(){
+  const t = norm(st.q).split(/\s+/).filter(Boolean);
+  if (st.vue === 'retirer') return RETIRES.filter(r => t.every(x => norm([r.Objet, r.Titulaire, r.N_EJ, r.Motif, r.ID_marche].join(' ')).includes(x)));
+  return MARCHES.filter(m => (st.vue === 'arch') === !!m.Archive)
+    .filter(m => !st.prog || postesDe(m).some(p => progDe(p) === st.prog))
+    .filter(m => t.every(x => norm([m.Objet, m.Lots, m.Reference, m.Titulaire, m.N_EJ, m.N_fournisseur, m.ID_marche].join(' ')).includes(x)))
+    .sort((a,b) => String(a.Objet||'').localeCompare(String(b.Objet||''),'fr') || String(a.Lots||a.Reference||'').localeCompare(String(b.Lots||b.Reference||''),'fr'));
+}
+function renderListe(){
+  $('#n-cours').textContent = MARCHES.filter(m => !m.Archive).length;
+  $('#n-arch').textContent = MARCHES.filter(m => m.Archive).length;
+  $('#n-retirer').textContent = RETIRES.length;
+  document.querySelectorAll('#vue button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === st.vue));
+  $('#nouveau').hidden = st.vue === 'retirer';
+  const L = visibles();
+  if (st.vue === 'retirer'){
+    $('#liste').innerHTML = `<div class="meta">${L.length} marché(s) mis de côté. Le propriétaire du document peut les supprimer définitivement dans Grist.</div>` +
+      L.map(r => `<button type="button" class="item" data-r="${r.id}" aria-current="${st.sel === 'r'+r.id}"><b>${esc(r.Objet || 'Sans objet')}</b><span class="s">${esc(r.Titulaire||'')} ${r.N_EJ ? '· EJ ' + esc(r.N_EJ) : ''}</span><br><span class="s">Retiré le ${fmt(r.Retire_le)} · ${esc(r.Motif||'')}</span></button>`).join('');
+    return;
+  }
+  $('#liste').innerHTML = `<div class="meta">${L.length} marché(s)</div>` + L.map(m => {
+    const s = statut(m.Fin), progs = uniq(postesDe(m).map(progDe)).sort();
+    return `<button type="button" class="item ${m.Archive?'arch':''}" data-id="${m.id}" aria-current="${st.sel === m.id}">
+      <b>${esc(m.Lots || m.Reference || m.Objet || 'Sans objet')}</b>
+      <span class="s">${esc(m.Titulaire || 'Titulaire à saisir')}${m.N_EJ ? ' · EJ ' + esc(m.N_EJ) : ''}</span><br>
+      ${m.Archive ? '<span class="badge b-arch">Archivé</span>' : `<span class="badge ${s.cls}">${s.label}</span>`} ${progs.map(p => `<span class="badge b-prog">${p}</span>`).join(' ')}
+      <span class="s">${m.Objet && (m.Lots || m.Reference) ? esc(m.Objet) : ''}</span></button>`;
+  }).join('');
+}
+
+/* ===================== Formulaire ===================== */
+function nouveauBrouillon(source){
+  const prochain = 'M' + String(Math.max(0, ...MARCHES.map(m => +String(m.ID_marche||'').replace(/\D/g,'') || 0), ...RETIRES.map(r => +String(r.ID_marche||'').replace(/\D/g,'') || 0)) + 1).padStart(4, '0');
+  const m = { id:null, ID_marche:prochain };
+  if (source){ CHAMPS_MARCHE.forEach(([k]) => { if (k !== 'ID_marche') m[k] = source.m[k]; }); m.N_EJ = ''; }
+  const postes = source ? source.postes.filter(p => !p._suppr).map(p => ({ ...p, id:null, _nouveau:true, _sel:false })) : [{ id:null, _nouveau:true, Poste:1, Programme:st.prog || '' }];
+  return { m, postes };
+}
+function brouillonDe(m){
+  const copie = {}; CHAMPS_MARCHE.forEach(([k]) => copie[k] = m[k]); copie.id = m.id; copie.Archive = m.Archive; copie.Archive_le = m.Archive_le; copie.Archive_motif = m.Archive_motif;
+  return { m:copie, postes: postesDe(m).sort((a,b) => (+a.Poste||0) - (+b.Poste||0)).map(p => ({ ...p, Programme: p.Programme || progDe(p) })) };
+}
+function champ([k, lib, type, larg]){
+  if (k !== 'ID_marche' && !MCOLS.has(k) && MCOLS.size) return '';
+  const v = st.brouillon.m[k], id = `f-${k}`;
+  let input;
+  if (type === 'auto') input = `<input id="${id}" value="${esc(v||'')}" readonly>`;
+  else if (type === 'date') input = `<input id="${id}" type="date" data-k="${k}" value="${isoDate(v)}">`;
+  else if (type === 'area') input = `<textarea id="${id}" data-k="${k}">${esc(v||'')}</textarea>`;
+  else input = `<input id="${id}" data-k="${k}" value="${esc(v ?? '')}" ${type === 'num10' ? 'inputmode="numeric" placeholder="10 chiffres"' : ''} autocomplete="off">`;
+  return `<div class="fl ${larg === 'large' ? 'large' : ''}"><label for="${id}">${lib}</label>${input}<span class="err" id="e-${k}" hidden></span></div>`;
+}
+function cellule(p, i, [k, lib, type, cls]){
+  if (!PCOLS.has(k) && PCOLS.size) return '';
+  const v = p[k], id = `p-${i}-${k}`, lab = `<label class="sr" for="${id}">${lib} (ligne ${i+1})</label>`;
+  if (type === 'prog') return `<td class="${cls}">${lab}<select id="${id}" data-pi="${i}" data-pk="${k}"><option value=""></option>${['182','107','912'].map(x => `<option ${String(v)===x?'selected':''}>${x}</option>`).join('')}</select></td>`;
+  if (type === 'date') return `<td class="${cls}">${lab}<input id="${id}" type="date" data-pi="${i}" data-pk="${k}" value="${isoDate(v)}"></td>`;
+  return `<td class="${cls}">${lab}<input id="${id}" data-pi="${i}" data-pk="${k}" value="${esc(v ?? '')}" ${type === 'gm' ? 'list="gmlist" placeholder="37.01.01"' : ''} ${type === 'int' ? 'inputmode="numeric"' : ''} autocomplete="off" title="${type === 'gm' && NOMEN?.get(String(v)) ? esc(NOMEN.get(String(v)).Libelle_GM) : ''}"></td>`;
+}
+function renderForm(){
+  const f = $('#form');
+  if (st.vue === 'retirer' && String(st.sel || '').startsWith('r')){
+    const r = RETIRES.find(x => 'r' + x.id === st.sel); if (!r){ f.innerHTML = '<div class="vide">Sélectionnez un marché.</div>'; return; }
+    let d = {}; try { d = JSON.parse(r.Donnees || '{}'); } catch(e){}
+    f.innerHTML = `<div class="inner"><div class="fhead"><h2>${esc(r.Objet || 'Sans objet')}</h2><span class="badge b-arch">À retirer</span></div>
+      <div class="archbox">Retiré le ${fmt(r.Retire_le)}. Motif : ${esc(r.Motif || '—')}</div>
+      <h3>Contenu conservé</h3><div class="recap">${esc(r.Titulaire||'')} ${r.N_EJ ? '· EJ ' + esc(r.N_EJ) : ''} · ${(d.postes||[]).length} poste(s)</div></div>
+      <div class="actions"><button type="button" class="btn primary" id="restaurer">Restaurer ce marché</button><span class="sp"></span><span class="note">La suppression définitive se fait par le propriétaire, dans la table A_retirer de Grist.</span></div>`;
+    return;
+  }
+  if (!st.brouillon){ f.innerHTML = '<div class="vide">Choisissez un marché dans la liste, ou créez-en un.</div>'; return; }
+  const b = st.brouillon, neuf = !b.m.id, arch = !!b.m.Archive;
+  const titre = b.m.Lots || b.m.Reference || b.m.Objet || (neuf ? 'Nouveau marché' : 'Sans objet');
+  f.innerHTML = `<div class="inner">
+    <div class="fhead"><h2 id="ftitre">${esc(titre)}</h2>
+      <span class="etat ${st.sale ? '' : 'ok'}" id="etat">${neuf ? 'Nouveau, non enregistré' : st.sale ? 'Modifié, non enregistré' : 'Enregistré'}</span>
+      ${arch ? '<span class="badge b-arch">Archivé</span>' : ''}</div>
+    ${arch ? `<div class="archbox">Archivé le ${fmt(b.m.Archive_le)}${b.m.Archive_motif ? ' · ' + esc(b.m.Archive_motif) : ''}. Il n'apparaît plus dans le catalogue ni dans les contrôles.</div>` : ''}
+    <h3>Le marché</h3><div class="grid">${CHAMPS_MARCHE.map(champ).join('')}</div>
+    ${blocPostes(b)}
+    <span class="err" id="e-postes" hidden style="color:var(--bad);font-size:12.5px;margin-left:8px"></span>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn primary" id="enregistrer">Enregistrer</button>
+    <button type="button" class="btn" id="annuler" ${!st.sale && !neuf ? 'disabled' : ''}>Annuler les modifications</button>
+    ${neuf ? '' : `<button type="button" class="btn" id="dupliquer">Dupliquer</button>
+    <button type="button" class="btn" id="archiver">${arch ? 'Désarchiver' : 'Archiver'}</button>`}
+    <span class="msg ${st.flash && Date.now() - st.flash.at < 6000 ? (st.flash.ok ? 'ok' : 'err') : ''}" id="msg" role="status">${st.flash && Date.now() - st.flash.at < 6000 ? esc(st.flash.t) : ''}</span><span class="sp"></span>
+    ${neuf ? '' : '<button type="button" class="btn danger" id="retirer">Saisi par erreur…</button>'}
+  </div>`;
+}
+/* ---------- Postes : valeurs communes, colonnes qui varient, actions groupées ---------- */
+const COL_POSTE = Object.fromEntries(CHAMPS_POSTE.map(c => [c[0], c]));
+function analyserColonnes(b){
+  const actifs = b.postes.filter(p => !p._suppr);
+  const cols = CHAMPS_POSTE.filter(([k]) => k !== 'Poste' && (PCOLS.has(k) || !PCOLS.size));
+  const communs = actifs.length > 1 && !st.toutesCols ? cols.filter(([k]) => new Set(actifs.map(p => String(p[k] ?? '').trim())).size === 1) : [];
+  const communsK = new Set(communs.map(c => c[0]));
+  return { actifs, communs, variables: cols.filter(([k]) => !communsK.has(k)) };
+}
+const ICO_SUPPR = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';
+const ICO_RETAB = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
+function blocPostes(b){
+  const { actifs, communs, variables } = analyserColonnes(b);
+  const sel = b.postes.filter(p => p._sel && !p._suppr).length;
+  const cv = c => { const [k, lib, type] = c, v = actifs[0]?.[k], id = `c-${k}`;
+    const inp = type === 'prog' ? `<select id="${id}" data-common="${k}"><option value=""></option>${['182','107','912'].map(x => `<option ${String(v)===x?'selected':''}>${x}</option>`).join('')}</select>`
+      : type === 'date' ? `<input id="${id}" type="date" data-common="${k}" value="${isoDate(v)}">`
+      : `<input id="${id}" data-common="${k}" value="${esc(v ?? '')}" ${type === 'gm' ? 'list="gmlist"' : ''} autocomplete="off">`;
+    return `<div class="fl"><label for="${id}">${lib}</label>${inp}</div>`; };
+  const cols = [COL_POSTE.Poste, ...variables];
+  return `<h3>Postes de l'EJ (${actifs.length})</h3>
+    ${communs.length ? `<div class="communs"><div class="t"><b>Valeurs communes à tous les postes</b> · une modification ici s'applique à toutes les lignes.
+      <button type="button" class="lien" id="toutesCols">Afficher toutes les colonnes</button></div><div class="grid">${communs.map(cv).join('')}</div></div>`
+      : (actifs.length > 1 && st.toutesCols ? `<p class="note"><button type="button" class="lien" id="toutesCols">Regrouper les valeurs communes</button></p>` : '')}
+    <div class="outils">
+      <button type="button" class="btn" id="addPoste"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg>Ajouter un poste</button>
+      <button type="button" class="btn" id="generer"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Générer plusieurs postes…</button>
+      <span class="sp"></span><span class="note">Astuce : vous pouvez coller dans le tableau des lignes copiées depuis Excel.</span>
+    </div>
+    ${sel ? `<div class="bulk" role="region" aria-label="Actions sur la sélection"><b>${sel} poste(s) sélectionné(s)</b>
+      <label class="sr" for="bk-col">Colonne</label><select id="bk-col">${CHAMPS_POSTE.filter(([k]) => k !== 'Poste' && (PCOLS.has(k) || !PCOLS.size)).map(([k,lib]) => `<option value="${k}">${lib}</option>`).join('')}</select>
+      <label class="sr" for="bk-val">Valeur</label><input id="bk-val" placeholder="Nouvelle valeur" list="gmlist">
+      <button type="button" class="btn primary" id="bk-app">Appliquer</button>
+      <button type="button" class="btn" id="bk-dup">Dupliquer</button>
+      <button type="button" class="btn danger" id="bk-del">Supprimer</button>
+      <button type="button" class="lien" id="bk-none">Tout désélectionner</button></div>` : ''}
+    <div class="tbl-wrap" id="tblPostes"><table><thead><tr>
+      <th class="ck"><input type="checkbox" id="ck-all" aria-label="Tout sélectionner" ${sel && sel === actifs.length ? 'checked' : ''}></th>
+      ${cols.map(([k,lib]) => `<th scope="col">${lib}${k !== 'Poste' ? `<button type="button" class="fd" data-fill="${k}" title="Recopier vers le bas dans les cases vides" aria-label="Recopier ${lib} vers le bas">⇣</button>` : ''}</th>`).join('')}
+      <th scope="col"><span class="sr">Supprimer</span></th></tr></thead>
+    <tbody>${b.postes.map((p,i) => `<tr class="${p._suppr?'suppr':''} ${p._nouveau?'nouveau':''}">
+      <td class="ck"><input type="checkbox" data-sel="${i}" aria-label="Sélectionner le poste ${esc(p.Poste||i+1)}" ${p._sel?'checked':''} ${p._suppr?'disabled':''}></td>
+      ${cols.map(c => cellule(p,i,c)).join('')}
+      <td><button type="button" class="icon" data-del="${i}" aria-label="${p._suppr ? 'Rétablir' : 'Supprimer'} le poste ${esc(p.Poste||i+1)}" title="${p._suppr ? 'Rétablir' : 'Supprimer'}">${p._suppr ? ICO_RETAB : ICO_SUPPR}</button></td></tr>`).join('')}</tbody></table></div>`;
+}
+const prochainNum = () => Math.max(0, ...st.brouillon.postes.filter(p => !p._suppr).map(p => +p.Poste || 0)) + 1;
+function nouveauPoste(base){
+  const champs = {}; CHAMPS_POSTE.forEach(([k]) => { if (k !== 'Poste' && k !== 'Commentaire') champs[k] = base?.[k] ?? ''; });
+  if (!champs.Programme) champs.Programme = st.prog || '';
+  return { id:null, _nouveau:true, ...champs, Poste:prochainNum() };
+}
+/* Générateur : structures × prestations × périodes annuelles */
+async function generer(){
+  const b = st.brouillon, base = b.postes.filter(p => !p._suppr).slice(-1)[0] || {};
+  const html = `<div class="gen">
+    <p class="note">Un poste est créé pour chaque combinaison. Le programme, le GM et l'imputation reprennent ceux du dernier poste ; ils restent modifiables ensuite.</p>
+    <label for="g-str">Structures bénéficiaires, une par ligne</label><textarea id="g-str" placeholder="DT Rouen&#10;STEMO Rouen&#10;UEHDR Rouen">${esc(base.Structure || '')}</textarea>
+    <label for="g-pre">Prestations, une par ligne (facultatif)</label><textarea id="g-pre" placeholder="Maintenance préventive&#10;Maintenance curative">${esc(base.Prestation || '')}</textarea>
+    <div class="r2"><div><label for="g-deb">Découper par année à partir du (facultatif)</label><input id="g-deb" type="date"></div>
+      <div><label for="g-ans">Nombre d'années</label><input id="g-ans" type="number" min="1" max="10" value="1"></div></div>
+    <p class="apercu" id="g-ap"></p></div>`;
+  const maj = () => { const n = l => $(l).value.split('\n').map(x => x.trim()).filter(Boolean).length || 1;
+    const ans = $('#g-deb').value ? Math.max(1, +$('#g-ans').value || 1) : 1; $('#g-ap').textContent = `${n('#g-str') * n('#g-pre') * ans} poste(s) seront créés.`; };
+  setTimeout(() => { $('#dlg-b').addEventListener('input', maj); maj(); }, 0);
+  const okGen = await demander({ titre:'Générer plusieurs postes', texte:html, ok:'Créer les postes' });
+  $('#dlg-b').removeEventListener('input', maj);
+  if (!okGen) return;
+  const lst = id => { const v = $(id).value.split('\n').map(x => x.trim()).filter(Boolean); return v.length ? v : ['']; };
+  const structs = lst('#g-str'), prest = lst('#g-pre'), deb = $('#g-deb').value, ans = deb ? Math.max(1, Math.min(10, +$('#g-ans').value || 1)) : 1;
+  const periodes = [];
+  for (let a = 0; a < ans; a++){
+    if (!deb){ periodes.push([base.Debut || '', base.Fin || '']); break; }
+    const d0 = new Date(deb + 'T00:00:00Z');
+    const d = new Date(Date.UTC(d0.getUTCFullYear() + a, d0.getUTCMonth(), d0.getUTCDate()));
+    const f = new Date(Date.UTC(d0.getUTCFullYear() + a + 1, d0.getUTCMonth(), d0.getUTCDate() - 1));
+    periodes.push([d.toISOString().slice(0,10), f.toISOString().slice(0,10)]);
+  }
+  // si la seule ligne existante est vide, on la remplace
+  const vides = b.postes.filter(p => p._nouveau && !p.id && !p.Structure && !p.Prestation && !p.GM);
+  if (vides.length === b.postes.length) b.postes = [];
+  let n = 0;
+  structs.forEach(sx => prest.forEach(px => periodes.forEach(([d,f]) => {
+    const p = nouveauPoste(base); p.Structure = sx; p.Prestation = px; p.Debut = d; p.Fin = f; b.postes.push(p); n++; })));
+  marquerSale(); renderForm(); setMsg(`${n} poste(s) ajouté(s) : vérifiez puis enregistrez.`, true);
+}
+/* Collage depuis Excel : lignes séparées par des retours, colonnes par des tabulations */
+function coller(e){
+  const t = e.target; if (t.dataset.pi == null) return;
+  const txt = (e.clipboardData || window.clipboardData).getData('text');
+  if (!/[\t\n]/.test(txt.trim())) return;
+  e.preventDefault();
+  const b = st.brouillon, { variables } = analyserColonnes(b), cols = ['Poste', ...variables.map(c => c[0])];
+  const c0 = cols.indexOf(t.dataset.pk), r0 = +t.dataset.pi;
+  const rows = txt.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(l => l.split('\t'));
+  rows.forEach((cells, ri) => {
+    let p = b.postes[r0 + ri]; if (!p){ p = nouveauPoste(b.postes.filter(x => !x._suppr).slice(-1)[0]); b.postes.push(p); }
+    cells.forEach((v, ci) => { const k = cols[c0 + ci]; if (k) p[k] = DATES.has(k) && /^\d{2}\/\d{2}\/\d{4}$/.test(v.trim()) ? v.trim().split('/').reverse().join('-') : v.trim(); });
+  });
+  marquerSale(); renderForm(); setMsg(`${rows.length} ligne(s) collée(s).`, true);
+}
+
+function marquerSale(){ if (!st.sale){ st.sale = true; const e = $('#etat'); if (e){ e.textContent = st.brouillon.m.id ? 'Modifié, non enregistré' : 'Nouveau, non enregistré'; e.classList.remove('ok'); } const a = $('#annuler'); if (a) a.disabled = false; } }
+
+/* ===================== Validation ===================== */
+function valider(){
+  const b = st.brouillon, errs = [];
+  const err = (k, t) => { const e = $('#e-' + k), i = $('#f-' + k); if (e){ e.textContent = t; e.hidden = !t; } if (i) i.setAttribute('aria-invalid', t ? 'true' : 'false'); if (t) errs.push(k); };
+  CHAMPS_MARCHE.forEach(([k]) => err(k, ''));
+  if (!String(b.m.Objet||'').trim() && !String(b.m.Lots||'').trim()) err('Objet', 'Indiquez au moins l\'objet ou le lot.');
+  ['N_EJ','N_fournisseur'].forEach(k => { const v = String(b.m[k] ?? '').trim(); if (v && !/^\d{10}$/.test(v)) err(k, '10 chiffres attendus.'); });
+  const d = toDate(b.m.Debut), f = toDate(b.m.Fin); if (d && f && f < d) err('Fin', 'La fin précède le début.');
+  const pe = [];
+  b.postes.forEach((p, i) => {
+    if (p._suppr) return;
+    const set = (k, bad) => { const el = $(`#p-${i}-${k}`); if (el) el.setAttribute('aria-invalid', bad ? 'true' : 'false'); };
+    const progOk = ['182','107','912'].includes(String(p.Programme)); set('Programme', !progOk); if (!progOk) pe.push(`ligne ${i+1} : programme`);
+    const gm = String(p.GM ?? '').trim(), gmOk = !gm || !NOMEN || NOMEN.has(gm); set('GM', !gmOk); if (!gmOk) pe.push(`ligne ${i+1} : GM inconnu`);
+  });
+  const e = $('#e-postes'); if (e){ e.textContent = pe.length ? 'À corriger : ' + pe.join(', ') : ''; e.hidden = !pe.length; }
+  if (!b.postes.some(p => !p._suppr)) pe.push('aucun poste');
+  return { ok: !errs.length && !pe.length, errs, pe };
+}
+
+/* ===================== Écriture dans Grist ===================== */
+function cell(table, k, v){
+  if (DATES.has(k)){ const d = toDate(v); return d ? Math.round(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000) : null; }
+  if (v === '' || v == null) return NUMCOL[table]?.[k] ? null : '';
+  if (NUMCOL[table]?.[k] && /^-?\d+([.,]\d+)?$/.test(String(v).trim())) return Number(String(v).replace(',', '.'));
+  return String(v).trim();
+}
+async function act(actions){ return grist.docApi.applyUserActions(actions); }
+function setMsg(t, ok){ st.flash = { t, ok, at: Date.now() }; const m = $('#msg'); if (m){ m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); } $('#live').textContent = t; }
+async function enregistrer(){
+  const v = valider(); if (!v.ok){ setMsg('Des champs sont à corriger.', false); (document.querySelector('[aria-invalid="true"]'))?.focus(); return; }
+  const b = st.brouillon, champsM = {};
+  CHAMPS_MARCHE.forEach(([k]) => { if (MCOLS.has(k)) champsM[k] = cell(T.marches, k, b.m[k]); });
+  try {
+    let id = b.m.id;
+    if (!id){ const r = await act([['AddRecord', T.marches, null, champsM]]); id = r.retValues[0]; }
+    else { delete champsM.ID_marche; await act([['UpdateRecord', T.marches, id, champsM]]); }
+    const lien = REF_POSTES ? id : b.m.ID_marche, A = [], suppr = [];
+    b.postes.forEach(p => {
+      if (p._suppr){ if (p.id) suppr.push(p.id); return; }
+      const f = {}; CHAMPS_POSTE.forEach(([k]) => { if (PCOLS.has(k)) f[k] = cell(T.postes, k, p[k]); });
+      if (!p.id){ f.Marche = lien; A.push(['AddRecord', T.postes, null, f]); } else if (p._modif) A.push(['UpdateRecord', T.postes, p.id, f]);
+    });
+    if (suppr.length) A.push(['BulkRemoveRecord', T.postes, suppr]);
+    if (A.length) await act(A);
+    // Classement GM et synthèses : colonnes facultatives, ignorées si ce sont des formules
+    await chargerPostes();
+    const mine = POSTES.filter(p => REF_POSTES ? p.Marche === id : String(p.Marche) === String(b.m.ID_marche));
+    if (NOMEN){ const C = []; mine.forEach(p => { const n = NOMEN.get(String(p.GM)); if (!n) return; const f = {};
+        Object.entries(n).forEach(([k, val]) => { if (PCOLS.has(k) && p[k] !== val) f[k] = val; }); if (Object.keys(f).length) C.push(['UpdateRecord', T.postes, p.id, f]); });
+      if (C.length) try { await act(C); } catch(e){} }
+    const syn = { Programmes: uniq(mine.map(progDe)).sort().join(' / '), Nb_postes: mine.length,
+      Entites: uniq(mine.map(p => progDe(p) === '182' ? 'PJJ' : progDe(p) ? 'DISP' : '')).sort().join(' / '),
+      Structures: uniq(mine.map(p => p.Structure)).join(' / '), Prestations: uniq(mine.map(p => p.Prestation)).join(' / ') };
+    syn.Mutualise = syn.Entites.includes('PJJ') && syn.Entites.includes('DISP') ? 'Oui' : '';
+    if (NOMEN) syn.Domaines_achat = uniq(mine.map(p => NOMEN.get(String(p.GM))?.Domaine_achat || '')).sort().join(' / ');
+    const fs = Object.fromEntries(Object.entries(syn).filter(([k]) => MCOLS.has(k)));
+    if (Object.keys(fs).length) try { await act([['UpdateRecord', T.marches, id, fs]]); } catch(e){}
+    st.sel = id; st.sale = false; st.brouillon = null; await apresEcriture();
+    setMsg('Enregistré dans Grist.', true);
+  } catch(e){ setMsg(/permission|access|denied|interdit/i.test(String(e)) ? 'Enregistrement refusé : vous êtes en consultation seule.' : 'Enregistrement impossible : ' + (e.message || e), false); }
+}
+async function assurerColonnesArchive(){
+  const A = [];
+  if (!MCOLS.has('Archive')) A.push(['AddColumn', T.marches, 'Archive', { type:'Bool' }]);
+  if (!MCOLS.has('Archive_le')) A.push(['AddColumn', T.marches, 'Archive_le', { type:'Date' }]);
+  if (!MCOLS.has('Archive_motif')) A.push(['AddColumn', T.marches, 'Archive_motif', { type:'Text' }]);
+  if (A.length){ await act(A); ['Archive','Archive_le','Archive_motif'].forEach(k => MCOLS.add(k)); }
+}
+async function archiver(){
+  const b = st.brouillon; if (!b?.m.id) return;
+  if (b.m.Archive){
+    if (!(await demander({ titre:'Désarchiver ce marché ?', texte:'Il réapparaîtra dans le catalogue et les contrôles.', ok:'Désarchiver' }))) return;
+    try { await act([['UpdateRecord', T.marches, b.m.id, { Archive:false }]]); st.vue = 'cours'; } catch(e){ return setMsg('Action refusée (droits ?).', false); }
+  } else {
+    const r = await demander({ titre:'Archiver ce marché ?', texte:`<div class="recap">${esc(b.m.Objet||'')}${b.m.Lots ? ' · ' + esc(b.m.Lots) : ''}<br>${esc(b.m.Titulaire||'')} ${b.m.N_EJ ? '· EJ ' + esc(b.m.N_EJ) : ''}</div>Il restera consultable dans « Archivés » et pourra être désarchivé.`, motif:'Motif (facultatif) : marché terminé, remplacé par…', ok:'Archiver' });
+    if (r === false) return;
+    try { await assurerColonnesArchive(); await act([['UpdateRecord', T.marches, b.m.id, { Archive:true, Archive_le: Math.floor(Date.now()/864e5)*86400, Archive_motif: r || '' }]]); st.vue = 'arch'; }
+    catch(e){ return setMsg('Archivage refusé (droits ?).', false); }
+  }
+  st.sale = false; st.brouillon = null; await apresEcriture();
+}
+async function retirer(){
+  const b = st.brouillon; if (!b?.m.id) return;
+  const r = await demander({ titre:'Ce marché a été saisi par erreur ?', danger:true,
+    texte:`<div class="recap"><b>${esc(b.m.Objet||'Sans objet')}</b>${b.m.Lots ? ' · ' + esc(b.m.Lots) : ''}<br>${esc(b.m.Titulaire||'')} ${b.m.N_EJ ? '· EJ ' + esc(b.m.N_EJ) : ''} · ${b.postes.filter(p=>p.id).length} poste(s)</div>
+      Il sera retiré du catalogue et déplacé, avec ses postes, dans la base <b>« À retirer »</b>. Il reste restaurable tant que le propriétaire ne l'a pas supprimé définitivement.`,
+    motif:'Motif (obligatoire) : doublon de…, erreur de saisie…', motifRequis:true, ok:'Déplacer dans « À retirer »' });
+  if (!r) return;
+  try {
+    const tables = await grist.docApi.listTables();
+    if (!tables.includes(T.retirer)) await act([['AddTable', T.retirer, [{id:'ID_marche',type:'Text'},{id:'Objet',type:'Text'},{id:'Titulaire',type:'Text'},{id:'N_EJ',type:'Text'},{id:'Motif',type:'Text'},{id:'Retire_le',type:'Date'},{id:'Donnees',type:'Text'}]]]);
+    const m = MARCHES.find(x => x.id === b.m.id), ps = postesDe(m);
+    const snap = { marche: Object.fromEntries(Object.entries(m).filter(([k]) => k !== 'id' && !k.startsWith('_') && k !== 'Postes_json')),
+      postes: ps.map(p => Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'id' && k !== 'Marche' && !k.startsWith('_')))) };
+    await act([['AddRecord', T.retirer, null, { ID_marche:String(m.ID_marche||''), Objet:String(m.Objet||''), Titulaire:String(m.Titulaire||''), N_EJ:String(m.N_EJ||''), Motif:r, Retire_le: Math.floor(Date.now()/864e5)*86400, Donnees: JSON.stringify(snap) }]]);
+    const A = []; if (ps.length) A.push(['BulkRemoveRecord', T.postes, ps.map(p => p.id)]); A.push(['RemoveRecord', T.marches, m.id]);
+    await act(A);
+    st.sel = null; st.brouillon = null; st.sale = false; await apresEcriture(); $('#live').textContent = 'Marché déplacé dans « À retirer ».';
+  } catch(e){ setMsg('Opération refusée : ' + (e.message || e), false); }
+}
+async function restaurer(){
+  const r = RETIRES.find(x => 'r' + x.id === st.sel); if (!r) return;
+  if (!(await demander({ titre:'Restaurer ce marché ?', texte:'Il reviendra dans la liste « En cours » avec ses postes.', ok:'Restaurer' }))) return;
+  try {
+    const d = JSON.parse(r.Donnees || '{}'), fm = Object.fromEntries(Object.entries(d.marche || {}).filter(([k]) => MCOLS.has(k)));
+    const res = await act([['AddRecord', T.marches, null, fm]]), id = res.retValues[0];
+    const A = (d.postes || []).map(p => ['AddRecord', T.postes, null, { ...Object.fromEntries(Object.entries(p).filter(([k]) => PCOLS.has(k))), Marche: REF_POSTES ? id : fm.ID_marche }]);
+    A.push(['RemoveRecord', T.retirer, r.id]);
+    await act(A); st.vue = 'cours'; st.sel = id; await apresEcriture();
+  } catch(e){ alertDlg('Restauration impossible : ' + (e.message || e)); }
+}
+async function apresEcriture(){ await Promise.all([chargerPostes(), chargerRetires()]); renderListe(); ouvrir(st.sel, true); }
+
+/* ===================== Dialogue ===================== */
+function demander({ titre, texte, motif, motifRequis, ok, danger }){
+  return new Promise(res => {
+    const d = $('#dlg'); $('#dlg-t').textContent = titre;
+    $('#dlg-b').innerHTML = (texte || '') + (motif ? `<label class="sr" for="dlg-motif">Motif</label><textarea id="dlg-motif" placeholder="${esc(motif)}"></textarea><span class="msg err" id="dlg-err"></span>` : '');
+    const bo = $('#dlg-oui'); bo.textContent = ok || 'Confirmer'; bo.className = 'btn ' + (danger ? 'danger' : 'primary');
+    const onOk = e => { if (motifRequis && !$('#dlg-motif').value.trim()){ e.preventDefault(); $('#dlg-err').textContent = 'Le motif est obligatoire.'; $('#dlg-motif').focus(); } };
+    bo.addEventListener('click', onOk);
+    d.addEventListener('close', function f(){ d.removeEventListener('close', f); bo.removeEventListener('click', onOk);
+      res(d.returnValue === 'oui' ? (motif ? ($('#dlg-motif')?.value.trim() || '') || (motifRequis ? false : '') : true) : false); }, { once:true });
+    d.returnValue = ''; d.showModal(); (motif ? $('#dlg-motif') : bo).focus();
+  });
+}
+const alertDlg = t => demander({ titre:'Information', texte:esc(t), ok:'Fermer' });
+
+/* ===================== Navigation ===================== */
+async function ouvrir(id, force){
+  if (!force && st.sale && !(await demander({ titre:'Modifications non enregistrées', texte:'Quitter ce marché sans enregistrer ?', ok:'Quitter sans enregistrer', danger:true }))) return false;
+  st.sale = false; st.sel = id;
+  if (typeof id === 'number'){ const m = MARCHES.find(x => x.id === id); st.brouillon = m ? brouillonDe(m) : null; }
+  else if (!String(id||'').startsWith('r')) st.brouillon = null;
+  renderListe(); renderForm(); return true;
+}
+$('#liste').addEventListener('click', e => { const it = e.target.closest('.item'); if (!it) return; ouvrir(it.dataset.id ? +it.dataset.id : 'r' + it.dataset.r); });
+$('#vue').addEventListener('click', async e => { const b = e.target.closest('button'); if (!b) return; if (!(await ouvrir(null))) return; st.vue = b.dataset.v; renderListe(); renderForm(); });
+$('#prog').addEventListener('change', e => { st.prog = e.target.value; renderListe(); });
+let tq; $('#q').addEventListener('input', e => { clearTimeout(tq); tq = setTimeout(() => { st.q = e.target.value; renderListe(); }, 120); });
+$('#nouveau').addEventListener('click', async () => { if (!(await ouvrir(null))) return; st.vue = 'cours'; st.brouillon = nouveauBrouillon(); st.sale = true; renderListe(); renderForm(); $('#f-Objet')?.focus(); });
+$('#form').addEventListener('paste', coller);
+$('#form').addEventListener('input', e => {
+  const t = e.target, b = st.brouillon; if (!b) return;
+  if (t.dataset.common){ b.postes.forEach(p => { if (!p._suppr){ p[t.dataset.common] = t.value; p._modif = true; } }); marquerSale(); return; }
+  if (t.dataset.k){ b.m[t.dataset.k] = t.value; marquerSale(); if (['Objet','Lots','Reference'].includes(t.dataset.k)) $('#ftitre').textContent = b.m.Lots || b.m.Reference || b.m.Objet || 'Nouveau marché'; }
+  else if (t.dataset.pi != null){ b.postes[+t.dataset.pi][t.dataset.pk] = t.value; b.postes[+t.dataset.pi]._modif = true; marquerSale();
+    if (t.dataset.pk === 'GM' && NOMEN) t.title = NOMEN.get(t.value)?.Libelle_GM || ''; }
+});
+$('#form').addEventListener('change', e => { if (e.target.closest('[aria-invalid="true"]') || e.target.getAttribute('aria-invalid') === 'true') valider(); });
+$('#form').addEventListener('change', e => {
+  const t = e.target, br = st.brouillon; if (!br) return;
+  if (t.dataset.sel != null){ br.postes[+t.dataset.sel]._sel = t.checked; renderForm(); document.querySelector(`[data-sel="${t.dataset.sel}"]`)?.focus(); }
+  if (t.id === 'ck-all'){ br.postes.forEach(p => { if (!p._suppr) p._sel = t.checked; }); renderForm(); $('#ck-all')?.focus(); }
+});
+$('#form').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.fill){ const k = b.dataset.fill; let prev = '';
+    st.brouillon.postes.forEach(p => { if (p._suppr) return; if (String(p[k] ?? '').trim()) prev = p[k]; else if (prev){ p[k] = prev; p._modif = true; } }); marquerSale(); renderForm(); return; }
+  if (b.dataset.del != null){ const p = st.brouillon.postes[+b.dataset.del];
+    if (p._nouveau && !p.id) st.brouillon.postes.splice(+b.dataset.del, 1); else p._suppr = !p._suppr; marquerSale(); renderForm(); return; }
+  switch (b.id){
+    case 'addPoste': { const ps = st.brouillon.postes.filter(p => !p._suppr);
+      st.brouillon.postes.push(nouveauPoste(ps[ps.length-1])); marquerSale(); renderForm();
+      document.querySelector(`#tblPostes tbody tr:last-child input:not([type=checkbox])`)?.focus(); break; }
+    case 'generer': generer(); break;
+    case 'toutesCols': st.toutesCols = !st.toutesCols; renderForm(); break;
+    case 'bk-app': { const k = $('#bk-col').value, v = $('#bk-val').value; st.brouillon.postes.forEach(p => { if (p._sel && !p._suppr){ p[k] = v; p._modif = true; } }); marquerSale(); renderForm(); setMsg('Valeur appliquée à la sélection.', true); break; }
+    case 'bk-dup': { const sel = st.brouillon.postes.filter(p => p._sel && !p._suppr); sel.forEach(p => { const c = { ...p, id:null, _nouveau:true, _sel:false, Poste:prochainNum() }; st.brouillon.postes.push(c); }); sel.forEach(p => p._sel = false); marquerSale(); renderForm(); setMsg(`${sel.length} poste(s) dupliqué(s).`, true); break; }
+    case 'bk-del': { const sel = st.brouillon.postes.filter(p => p._sel && !p._suppr);
+      if (!(await demander({ titre:`Supprimer ${sel.length} poste(s) ?`, texte:'Ils seront retirés à l\'enregistrement.', ok:'Supprimer', danger:true }))) return;
+      st.brouillon.postes = st.brouillon.postes.filter(p => !(p._sel && p._nouveau && !p.id)); st.brouillon.postes.forEach(p => { if (p._sel){ p._suppr = true; p._sel = false; } }); marquerSale(); renderForm(); break; }
+    case 'bk-none': st.brouillon.postes.forEach(p => p._sel = false); renderForm(); break;
+    case 'enregistrer': enregistrer(); break;
+    case 'annuler': st.sale = false; if (st.brouillon.m.id) ouvrir(st.brouillon.m.id, true); else { st.brouillon = null; renderForm(); } break;
+    case 'dupliquer': { const src = st.brouillon; st.brouillon = nouveauBrouillon(src); st.sel = null; st.sale = true; renderListe(); renderForm(); $('#f-Lots')?.focus(); setMsg('Copie créée : complétez-la (n° EJ vidé), puis enregistrez.', true); break; }
+    case 'archiver': archiver(); break;
+    case 'retirer': retirer(); break;
+    case 'restaurer': restaurer(); break;
+  }
+});
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && st.brouillon){ e.preventDefault(); enregistrer(); } });
+
+/* ===================== Logo et police depuis Grist ===================== */
+const ids = v => Array.isArray(v) ? v.filter(x => typeof x === 'number') : (typeof v === 'number' ? [v] : []);
+function graisse(nom){
+  const n = norm(nom);
+  const w = /thin|hairline/.test(n) ? 100 : /extra.?light|ultra.?light/.test(n) ? 200 : /light/.test(n) ? 300
+          : /medium/.test(n) ? 500 : /semi.?bold|demi/.test(n) ? 600 : /extra.?bold|heavy|black/.test(n) ? 800
+          : /bold/.test(n) ? 700 : 400;
+  return { weight:String(w), style:/italic|oblique/.test(n) ? 'italic' : 'normal' };
+}
+/* Reconnaît le format d'après les premiers octets (Grist sert les pièces jointes sans type fiable) */
+function sniff(buf){
+  const b = new Uint8Array(buf.slice(0, 16)), t = new TextDecoder().decode(buf.slice(0, 300)).trim().toLowerCase();
+  const sig = String.fromCharCode(...b.slice(0, 4));
+  if (b[0] === 0x89 && sig.slice(1) === 'PNG') return { kind:'img', type:'image/png' };
+  if (b[0] === 0xFF && b[1] === 0xD8) return { kind:'img', type:'image/jpeg' };
+  if (sig === 'GIF8') return { kind:'img', type:'image/gif' };
+  if (sig === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP') return { kind:'img', type:'image/webp' };
+  if (t.startsWith('<svg') || (t.startsWith('<?xml') && t.includes('<svg')) || t.includes('<svg')) return { kind:'img', type:'image/svg+xml' };
+  if (sig === 'wOF2') return { kind:'font', type:'font/woff2' };
+  if (sig === 'wOFF') return { kind:'font', type:'font/woff' };
+  if (sig === 'OTTO') return { kind:'font', type:'font/otf' };
+  if (b[0] === 0 && b[1] === 1 && b[2] === 0 && b[3] === 0) return { kind:'font', type:'font/ttf' };
+  if (sig === 'PK\x03\x04') return { kind:'zip' };
+  return { kind:'?' };
+}
+const DIAG = [];
+function diag(msg){ if (DIAG.includes(msg)) return; DIAG.push(msg); const d = $('#diag'); if (d){ d.hidden = false; d.textContent = DIAG.join(' · '); } console.warn('[widget marchés]', msg); }
+async function chargerRessources(){
+  let ctx;
+  try { ctx = await grist.docApi.fetchTable(RESSOURCES.table); }
+  catch(e){ diag(`Table « ${RESSOURCES.table} » introuvable ou accès insuffisant (régler le widget sur « Accès complet »)`); return; }
+  if (!ctx.id || !ctx.id.length){ diag(`La table « ${RESSOURCES.table} » est vide`); return; }
+  const col = k => (ctx[RESSOURCES[k]] || [])[0];
+  if (!(RESSOURCES.logo in ctx)) diag(`Colonne « ${RESSOURCES.logo} » absente de ${RESSOURCES.table}`);
+  const texte = col('mention'); if (texte) $('#mention').textContent = texte;
+  const logoIds = ids(col('logo')), policeIds = ids(col('police'));
+  if (RESSOURCES.logo in ctx && !logoIds.length) diag(`Aucune pièce jointe dans « ${RESSOURCES.logo} » (vérifier que la colonne est de type Pièces jointes)`);
+  if (!logoIds.length && !policeIds.length) return;
+  let noms = {};
+  try { const att = await grist.docApi.fetchTable('_grist_Attachments'); att.id.forEach((id, i) => noms[id] = att.fileName?.[i] || ''); } catch(e){}
+  let acces;
+  try { acces = await grist.docApi.getAccessToken({ readOnly:true }); }
+  catch(e){ diag('Jeton d\'accès refusé : régler le widget sur « Accès complet au document »'); return; }
+  const lire = async id => {
+    const r = await fetch(`${acces.baseUrl}/attachments/${id}/download?auth=${acces.token}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.arrayBuffer();
+  };
+  for (const id of logoIds.slice(0, 1)){
+    try {
+      const buf = await lire(id), f = sniff(buf);
+      if (f.kind !== 'img'){ diag(`Le fichier logo « ${noms[id] || id} » n'est pas une image reconnue (png, jpg, svg)`); continue; }
+      const img = $('#logo');
+      img.onerror = () => { img.hidden = true; $('#sign').classList.remove('has-logo'); diag(`Logo « ${noms[id] || id} » illisible par le navigateur`); };
+      img.src = URL.createObjectURL(new Blob([buf], { type: f.type })); img.hidden = false; $('#sign').classList.add('has-logo');
+    } catch(e){ diag(`Logo non téléchargé (${e.message})`); }
+  }
+  for (const id of policeIds){
+    try {
+      const buf = await lire(id), f = sniff(buf);
+      if (f.kind === 'zip'){ diag(`« ${noms[id] || id} » est un ZIP : déposer les fichiers de police décompressés`); continue; }
+      if (f.kind !== 'font') continue;
+      const face = new FontFace('Marianne', buf, { ...graisse(noms[id] || ''), display:'swap' });
+      await face.load(); document.fonts.add(face);
+    } catch(e){ diag(`Police « ${noms[id] || id} » non chargée`); }
+  }
+}
+
+
+
+/* ===================== Démarrage ===================== */
+$('#mention').textContent = MENTION;
+const INSIDE = window.self !== window.top && typeof grist !== 'undefined';
+if (INSIDE){
+  grist.ready({ requiredAccess:'full' });
+  chargerRessources(); chargerNomen();
+  let recu = false;
+  setTimeout(() => { if (!recu) diag('Aucune donnée reçue : brancher la vue personnalisée sur la table Marches et accepter l\'« Accès complet au document ».'); }, 4000);
+  grist.onRecords(async recs => {
+    recu = true; MARCHES = recs; MCOLS = new Set(recs.length ? Object.keys(recs[0]) : CHAMPS_MARCHE.map(c => c[0])); typesNum(recs, T.marches);
+    await Promise.all([chargerPostes(), chargerRetires()]);
+    renderListe();
+    if (!st.sale && typeof st.sel === 'number'){ const m = MARCHES.find(x => x.id === st.sel); st.brouillon = m ? brouillonDe(m) : null; renderForm(); }
+  });
+} else {
+  document.querySelector('.bar').hidden = true;
+  $('#liste').hidden = true;
+  $('#form').innerHTML = '<div class="vide"><strong>Ce widget s\'utilise dans Grist.</strong><br>Ajoutez une vue « Personnalisée » sur la table Marches, collez l\'adresse de cette page et accordez l\'accès complet.</div>';
+}
+</script>
+</body>
+</html>
