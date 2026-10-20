@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installation des signalements</title>
+<!--
+  Widget Grist d'installation — « Signalements – marchés mutualisés »
+  À utiliser UNE FOIS, par le propriétaire du document :
+    Ajouter une page > Personnalisée > URL personnalisée : https://<compte>.github.io/<depot>/installation.html > Accès complet au document.
+  Il crée (ou complète) les tables, crée les pages et, sur option, les règles d'accès.
+  Les listes d'amorçage (et le jeu de test) sont des fichiers CSV choisis SUR LE POSTE de l'utilisateur :
+  ils sont lus par le navigateur et envoyés directement à Grist ; ils ne sont jamais publiés sur GitHub.
+  Il ne supprime ni ne modifie jamais une donnée existante. La structure vient de src/schema.js (code, sans données).
+-->
+<style>
+/* --- commun.css (inclus) --- */
+/* =====================================================================
+ *  commun.css — identité visuelle partagée des widgets « Signalements »
+ *  Clair / sombre via variables CSS (prefers-color-scheme + data-theme).
+ * ===================================================================== */
+:root{
+  --bg:#f6f6f9; --surface:#ffffff; --surface-2:#f0f0f7; --line:#dddde6; --line-strong:#b9b9c9; --grid:#ececf2;
+  --ink:#161616; --ink-2:#3a3a4a; --muted:#666677;
+  --accent:#000091; --accent-ink:#ffffff; --accent-soft:#e3e3fd; --focus:#0a76f6;
+  --ok:#18753c; --ok-soft:#dffbe7; --warn:#b77d00; --warn-soft:#fdf3dc; --crit:#ce0500; --crit-soft:#fde4e4;
+  --g1:#1f8d49; --g1s:#e4f6ea; --g2:#b7791f; --g2s:#fdf3dc; --g3:#d64d00; --g3s:#fde8dc; --g4:#ce0500; --g4s:#fde4e4;
+  --radius:10px; --shadow:0 1px 2px rgba(0,0,30,.06),0 4px 14px rgba(0,0,60,.06);
+  --font:Marianne,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121218; --surface:#1c1c25; --surface-2:#252532; --line:#33334a; --line-strong:#4a4a66; --grid:#2a2a36;
+    --ink:#ededf5; --ink-2:#c8c8d8; --muted:#9a9ab0;
+    --accent:#8585f6; --accent-ink:#0d0d26; --accent-soft:#2a2a55; --focus:#6ea8ff;
+    --ok:#4fd187; --ok-soft:#163a25; --warn:#f0c060; --warn-soft:#3a2f12; --crit:#ff6b66; --crit-soft:#421616;
+    --g1:#4fd187; --g1s:#163a25; --g2:#f0c060; --g2s:#3a2f12; --g3:#ff8c4a; --g3s:#40220f; --g4:#ff6b66; --g4s:#421616;
+    --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121218; --surface:#1c1c25; --surface-2:#252532; --line:#33334a; --line-strong:#4a4a66; --grid:#2a2a36;
+  --ink:#ededf5; --ink-2:#c8c8d8; --muted:#9a9ab0;
+  --accent:#8585f6; --accent-ink:#0d0d26; --accent-soft:#2a2a55; --focus:#6ea8ff;
+  --ok:#4fd187; --ok-soft:#163a25; --warn:#f0c060; --warn-soft:#3a2f12; --crit:#ff6b66; --crit-soft:#421616;
+  --g1:#4fd187; --g1s:#163a25; --g2:#f0c060; --g2s:#3a2f12; --g3:#ff8c4a; --g3s:#40220f; --g4:#ff6b66; --g4s:#421616;
+  --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+h1{font-size:19px;line-height:1.25;margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:17px;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.brand{display:flex;gap:12px;align-items:center}
+.flag{flex:none;width:6px;height:38px;border-radius:3px;background:linear-gradient(var(--accent) 0 33%,var(--surface) 33% 66%,#e1000f 66%);border:1px solid var(--line)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px}
+.banner{border-radius:var(--radius);padding:10px 14px;font-size:13.5px;margin-bottom:12px;border:1px solid var(--line);background:var(--surface)}
+.banner.warn{border-color:var(--warn);background:var(--warn-soft)}
+.banner.err{border-color:var(--crit);background:var(--crit-soft)}
+.banner.ok{border-color:var(--ok);background:var(--ok-soft)}
+.btn{font:inherit;font-weight:600;border-radius:8px;padding:9px 16px;cursor:pointer;border:1.5px solid var(--accent);background:transparent;color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.link{background:none;border:0;color:var(--accent);font:inherit;font-size:13px;cursor:pointer;text-decoration:underline;padding:0}
+input[type=text],input[type=date],input[type=number],input[type=search],input[type=email],textarea,select{
+  width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:4px;background:var(--surface-2);color:var(--ink-2);margin-right:6px;vertical-align:1px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.empty{text-align:center;color:var(--muted);padding:24px 10px;font-size:14px}
+.muted{color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hidden{display:none!important}
+.fatal{max-width:560px;margin:40px auto;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 24px}
+.fatal-ico{width:42px;height:42px;border-radius:50%;margin:0 auto 10px;display:grid;place-items:center;font-weight:800;font-size:22px;background:var(--warn-soft);color:var(--warn)}
+.fatal div{color:var(--ink-2);font-size:14px}
+.loading{text-align:center;color:var(--muted);padding:40px 10px}
+
+</style>
+<style>
+.wrap{max-width:820px;margin:0 auto;padding:16px}
+header{margin-bottom:14px}
+.opts{display:flex;flex-direction:column;gap:10px;margin:14px 0}
+.opts label{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.opts input{margin-top:4px}
+.opts small{display:block;color:var(--muted);font-size:12.5px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:6px 0 12px}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.st-ok{color:var(--ok);font-weight:600}.st-add{color:var(--accent);font-weight:600}.st-warn{color:var(--warn);font-weight:600}
+#log{font:12.5px/1.5 ui-monospace,Consolas,monospace;background:var(--surface-2);border-radius:8px;padding:10px 12px;max-height:340px;overflow:auto;white-space:pre-wrap;margin-top:12px}
+#log:empty{display:none}
+.pick{border:1.5px dashed var(--line-strong);border-radius:10px;padding:12px 14px;margin:0 0 14px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.pick small{color:var(--muted);font-size:12.5px}
+#csv-list{font-size:12.5px}
+.tbl-wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="brand">
+    <div class="flag" aria-hidden="true"></div>
+    <div><h1>Installation du dispositif de signalements</h1>
+      <div class="sub">Tables, listes d'amorçage, pages et règles d'accès du document Grist</div></div>
+  </header>
+  <div id="banner"></div>
+  <main id="app" class="card"><div class="loading">Connexion au document…</div></main>
+</div>
+
+<script>
+/* --- src/schema.js (inclus) --- */
+/* =====================================================================
+ *  Schéma du document Grist « Signalements – marchés mutualisés »
+ *  Source unique : utilisée par installation.html (création des tables)
+ *  et par build.py (génération de docs/schema-grist.md).
+ *  Ce fichier décrit la STRUCTURE (tables, colonnes, formules) : aucune donnée.
+ * ===================================================================== */
+const SCHEMA = (() => {
+  // Couleurs des listes de choix (affichage natif Grist)
+  const C = (fill, text) => ({ fillColor: fill, textColor: text });
+  const choix = (vals, couleurs) => ({ choices: vals, choiceOptions: couleurs || {} });
+  const DATE = { dateFormat: "DD/MM/YYYY", isCustomDateFormat: false, alignment: "left" };
+  const EUR = { numMode: "currency", currency: "EUR", decimals: 2, alignment: "right" };
+  const WRAP = { wrap: true };
+
+  // Calcul des jours ouvrés (lundi-vendredi), utilisé dans plusieurs formules
+  const JO = (debut, fin) => `import datetime
+d0, d1 = ${debut}, ${fin}
+if not d0 or not d1:
+  return None
+n, d = 0, d0
+while d < d1:
+  d += datetime.timedelta(days=1)
+  if d.weekday() < 5:
+    n += 1
+return n`;
+
+  const GRAVITES = ["1 · Mineure", "2 · Significative", "3 · Majeure", "4 · Critique"];
+  const STATUTS = ["Nouveau", "Pris en charge", "En cours auprès du titulaire", "En attente du service",
+                   "Clos – résolu", "Clos – non résolu", "Annulé"];
+
+  return {
+    version: "2026-10-20",
+    tables: [
+      /* ----------------------------------------------------------------- */
+      { id: "Parametres", titre: "Paramètres",
+        role: "Réglages lus par les widgets (destinataire du courriel, préfixe d'objet, délai d'engagement…). Une ligne par réglage.",
+        amorcage: "amorcage/Parametres.csv",
+        colonnes: [
+          { id: "Cle", label: "Clé", type: "Text", desc: "Identifiant du réglage, ne pas modifier." },
+          { id: "Valeur", label: "Valeur", type: "Text", desc: "Valeur du réglage, modifiable." },
+          { id: "Description", label: "Description", type: "Text", opts: WRAP },
+        ] },
+
+      /* ----------------------------------------------------------------- */
+      { id: "Services", titre: "Services",
+        role: "Services et établissements du ressort, rattachés à leur siège. Siège vide : le service est lui-même un siège.",
+        amorcage: "amorcage/Services.csv",
+        colonnes: [
+          { id: "Nom", label: "Nom", type: "Text" },
+          { id: "Siege", label: "Siège", type: "Ref:Services", affiche: "Nom", desc: "Vide si ce service est lui-même un siège." },
+          { id: "Actif", label: "Actif", type: "Bool", declencheur: { quand: "creation", formule: "True" },
+            desc: "Décochez pour masquer le service dans le formulaire sans le supprimer." },
+          { id: "Siege_nom", label: "Siège (nom)", type: "Text", formule: "$Siege.Nom if $Siege else $Nom" },
+          { id: "Nb_fiches", label: "Fiches", type: "Int", formule: "len(Fiches.lookupRecords(Service=$id))" },
+        ] },
+
+      /* ----------------------------------------------------------------- */
+      { id: "Utilisateurs", titre: "Utilisateurs",
+        role: "Profils : rôle (Agent ou Acheteur) et service de rattachement. Sert aux règles d'accès et au pré-remplissage du formulaire.",
+        amorcage: null,
+        colonnes: [
+          { id: "Email", label: "Courriel", type: "Text", desc: "Adresse de connexion ProConnect, en minuscules." },
+          { id: "Nom_prenom", label: "Nom et prénom", type: "Text" },
+          { id: "Telephone", label: "Téléphone", type: "Text" },
+          { id: "Service", label: "Service", type: "Ref:Services", affiche: "Nom" },
+          { id: "Role", label: "Rôle", type: "Choice", opts: choix(["Agent", "Acheteur"], { Acheteur: C("#E3E3FD", "#000091") }),
+            declencheur: { quand: "creation", formule: '"Agent"' },
+            desc: "Acheteur : traite les fiches, normalise les marchés, voit tout." },
+        ] },
+
+      /* ----------------------------------------------------------------- */
+      { id: "Marches", titre: "Marchés",
+        role: "Référentiel des marchés normalisés. Vide au départ : il est construit par les acheteurs à partir des saisies des services.",
+        amorcage: null,
+        colonnes: [
+          { id: "Intitule", label: "Intitulé", type: "Text" },
+          { id: "Reference", label: "Référence", type: "Text" },
+          { id: "Support", label: "Support", type: "Choice", opts: choix(["PFRA", "UGAP", "DAE", "Ministériel", "Autre"]) },
+          { id: "Titulaire", label: "Titulaire", type: "Text" },
+          { id: "Segment", label: "Segment", type: "Text" },
+          { id: "Alias", label: "Alias", type: "Text", opts: WRAP,
+            desc: "Autres appellations (une par ligne). Alimenté automatiquement lors d'une fusion ; utilisé par la recherche." },
+          { id: "Montant_commande_12m", label: "Commandé sur 12 mois", type: "Numeric", opts: EUR,
+            desc: "Facultatif (extraction Chorus). Active l'indicateur « fiches pour 100 k€ »." },
+          { id: "Actif", label: "Actif", type: "Bool", declencheur: { quand: "creation", formule: "True" } },
+          { id: "Fusionne_dans", label: "Fusionné dans", type: "Ref:Marches", affiche: "Libelle",
+            desc: "Renseigné lors d'une fusion de doublons : le marché conservé." },
+          { id: "Date_creation", label: "Créé le", type: "Date", opts: DATE, declencheur: { quand: "creation", formule: "TODAY()" } },
+          { id: "Cree_par", label: "Créé par", type: "Text", declencheur: { quand: "creation", formule: "user.Name or user.Email" } },
+          { id: "Libelle", label: "Libellé", type: "Text",
+            formule: '$Intitule + (" – " + $Reference if $Reference else "")' },
+          { id: "Nb_fiches", label: "Fiches", type: "Int", formule: "len(Fiches.lookupRecords(Marche=$id))" },
+        ] },
+
+      /* ----------------------------------------------------------------- */
+      { id: "Typologies", titre: "Typologies",
+        role: "Types de difficulté proposés à l'étape 1 ; Bloc déclenche des champs complémentaires ; Pieces_attendues guide le courriel.",
+        amorcage: "amorcage/Typologies.csv",
+        colonnes: [
+          { id: "Code", label: "Code", type: "Text" },
+          { id: "Nature", label: "Nature", type: "Choice", opts: choix(["Exécution", "Adéquation", "Les deux"]) },
+          { id: "Famille", label: "Famille", type: "Text" },
+          { id: "Libelle", label: "Libellé", type: "Text" },
+          { id: "Aide", label: "Aide", type: "Text", opts: WRAP, desc: "Texte d'aide affiché à l'étape 2." },
+          { id: "Bloc", label: "Bloc", type: "Choice", opts: choix(["delai", "prix", "doc", "besoin"]),
+            desc: "Champs complémentaires : delai (dates, retard), prix (écart), doc (document attendu), besoin (contournement)." },
+          { id: "Pieces_attendues", label: "Pièces attendues", type: "Text", opts: WRAP,
+            desc: "Une pièce par ligne : listée à l'étape 3 et dans le courriel de transmission." },
+          { id: "Ordre", label: "Ordre", type: "Int" },
+          { id: "Actif", label: "Actif", type: "Bool", declencheur: { quand: "creation", formule: "True" } },
+        ] },
+
+      /* ----------------------------------------------------------------- */
+      { id: "Fiches", titre: "Fiches",
+        role: "Une ligne par signalement. Le service remplit la partie « saisie » via le widget ; le pôle achats renseigne la partie « traitement ».",
+        amorcage: null,
+        colonnes: [
+          // ---- Identification (automatique)
+          { groupe: "Identification (automatique)" },
+          { id: "Numero", label: "N°", type: "Text",
+            declencheur: { quand: "creation", formule: `# Numéro figé à la création : FI-année-séquence, séquence remise à 1 chaque année.
+# On ne lit que les fiches plus anciennes (id inférieur) : pas de référence circulaire,
+# même quand plusieurs fiches sont créées d'un coup (import).
+annee = ($Date_signalement or TODAY()).year
+prefixe = "FI-%d-" % annee
+dernier = 0
+for f in Fiches.lookupRecords():
+  if f.id >= $id:
+    continue
+  try:
+    num = f.Numero or ""
+  except Exception:
+    continue
+  suite = num[len(prefixe):]
+  if num.startswith(prefixe) and suite.isdigit():
+    dernier = max(dernier, int(suite))
+return prefixe + "%04d" % (dernier + 1)` },
+            desc: "Calculé une seule fois à la création : FI-année-séquence, remis à 0001 chaque 1er janvier. Ne pas supprimer de fiche : passer au statut « Annulé »." },
+          { id: "Date_signalement", label: "Signalé le", type: "Date", opts: DATE, declencheur: { quand: "creation", formule: "TODAY()" } },
+          { id: "Cree_par", label: "Créé par (courriel)", type: "Text", declencheur: { quand: "creation", formule: "user.Email" },
+            desc: "Courriel ProConnect de l'auteur : sert à « Mes signalements » et aux règles d'accès." },
+
+          // ---- Saisie du service
+          { groupe: "Saisie du service (widget Signaler)" },
+          { id: "Service", label: "Service", type: "Ref:Services", affiche: "Nom" },
+          { id: "Contact_site", label: "Contact sur site", type: "Text" },
+          { id: "Nature", label: "Nature", type: "Choice", opts: choix(["Exécution", "Adéquation"]) },
+          { id: "Marche_saisi", label: "Marché (saisi)", type: "Text", desc: "Tel que tapé par le service. Ne jamais modifier : trace d'origine." },
+          { id: "Marche_saisi_ref", label: "Réf. (saisie)", type: "Text" },
+          { id: "Marche_saisi_titulaire", label: "Titulaire (saisi)", type: "Text" },
+          { id: "Typologie", label: "Type de difficulté", type: "Ref:Typologies", affiche: "Libelle" },
+          { id: "Date_constat", label: "Constaté le", type: "Date", opts: DATE },
+          { id: "Gravite", label: "Gravité", type: "Choice", opts: choix(GRAVITES, {
+              [GRAVITES[0]]: C("#E4F6EA", "#1F6B3A"), [GRAVITES[1]]: C("#FDF3DC", "#7A5410"),
+              [GRAVITES[2]]: C("#FDE8DC", "#A33A00"), [GRAVITES[3]]: C("#FDE4E4", "#B00000") }) },
+          { id: "Recurrence", label: "Fréquence", type: "Choice", opts: choix(["Première fois", "Déjà constaté", "Récurrent"]) },
+          { id: "Description", label: "Description", type: "Text", opts: WRAP },
+          { id: "Bon_commande", label: "N° BC / EJ", type: "Text" },
+          { id: "Montant_enjeu", label: "Montant en jeu", type: "Numeric", opts: EUR },
+          { id: "Attendu", label: "Attente", type: "Choice",
+            opts: choix(["Information", "Conseil", "Intervention", "Pénalités", "Revue de contrat"]) },
+          { id: "Demarches", label: "Démarches faites", type: "ChoiceList",
+            opts: choix(["Aucune", "Relance téléphonique", "Relance écrite", "Réunion avec le titulaire",
+                         "Mise en demeure envoyée", "Pénalités / réfaction appliquées"]) },
+          { id: "Date_prevue", label: "Date prévue", type: "Date", opts: DATE },
+          { id: "Date_reelle", label: "Date réelle", type: "Date", opts: DATE },
+          { id: "Non_realise", label: "Pas encore réalisé", type: "Bool" },
+          { id: "Prix_attendu", label: "Prix attendu (u.)", type: "Numeric", opts: EUR },
+          { id: "Prix_constate", label: "Prix constaté (u.)", type: "Numeric", opts: EUR },
+          { id: "Quantite", label: "Quantité", type: "Numeric" },
+          { id: "Document_attendu", label: "Document attendu", type: "Text" },
+          { id: "Contournement", label: "Contournement", type: "Choice",
+            opts: choix(["Aucune", "Achat hors marché", "Besoin reporté", "Autre fournisseur du marché", "Autre"]) },
+          { id: "Pieces_annoncees", label: "Pièces annoncées", type: "Choice",
+            opts: choix(["Oui, jointes au courriel", "Aucune pièce disponible"]) },
+          { id: "Attestation", label: "Attestation", type: "Bool" },
+
+          // ---- Traitement par le pôle achats
+          { groupe: "Traitement (pôle achats)" },
+          { id: "Statut", label: "Statut", type: "Choice", declencheur: { quand: "creation", formule: '"Nouveau"' },
+            opts: choix(STATUTS, {
+              "Nouveau": C("#E3E3FD", "#000091"), "Pris en charge": C("#E8EDFF", "#1D3F8F"),
+              "En cours auprès du titulaire": C("#FDF3DC", "#7A5410"), "En attente du service": C("#F0F0F7", "#3A3A4A"),
+              "Clos – résolu": C("#DFFBE7", "#18753C"), "Clos – non résolu": C("#EEEEEE", "#444444"),
+              "Annulé": C("#F6F6F6", "#888888") }) },
+          { id: "Marche", label: "Marché (normalisé)", type: "Ref:Marches", affiche: "Libelle",
+            desc: "Rattachement au référentiel, fait par l'acheteur (ou par le service s'il a choisi un marché existant)." },
+          { id: "Courriel_recu", label: "Courriel reçu", type: "Bool",
+            desc: "À cocher par l'acheteur à réception du courriel de transmission (avec ou sans pièces)." },
+          { id: "Date_courriel_recu", label: "Courriel reçu le", type: "Date", opts: DATE,
+            declencheur: { quand: "champs", champs: ["Courriel_recu"], formule: "(value or TODAY()) if $Courriel_recu else None" } },
+          { id: "Acheteur_referent", label: "Acheteur référent", type: "Text",
+            declencheur: { quand: "champs", champs: ["Statut"], formule: `if value:
+  return value
+if $Statut and $Statut not in ("Nouveau", "Annulé"):
+  return user.Name or user.Email
+return None` } },
+          { id: "Date_prise_en_charge", label: "Pris en charge le", type: "Date", opts: DATE,
+            declencheur: { quand: "champs", champs: ["Statut"], formule: `if value:
+  return value
+if $Statut and $Statut not in ("Nouveau", "Annulé"):
+  return TODAY()
+return None` } },
+          { id: "Date_cloture", label: "Clos le", type: "Date", opts: DATE,
+            declencheur: { quand: "champs", champs: ["Statut"], formule: `if str($Statut or "").startswith("Clos"):
+  return value or TODAY()
+return None` } },
+          { id: "Niveau_preuve", label: "Corroboration", type: "Choice",
+            opts: choix(["Étayée", "Partielle", "Déclarative"], {
+              "Étayée": C("#DFFBE7", "#18753C"), "Partielle": C("#FDF3DC", "#7A5410"), "Déclarative": C("#F0F0F7", "#3A3A4A") }),
+            desc: "Étayée : pièces probantes reçues. Partielle : pièces incomplètes. Déclarative : aucune pièce." },
+          { id: "Note_corroboration", label: "Note de corroboration", type: "Text", opts: WRAP },
+          { id: "Issue", label: "Issue", type: "Choice",
+            opts: choix(["Résolu à l'amiable", "Pénalités appliquées", "Réfaction", "Mise en demeure", "Sans suite", "Porté en revue de contrat"]) },
+          { id: "Penalites", label: "Pénalités", type: "Numeric", opts: EUR },
+          { id: "Refactions", label: "Réfactions", type: "Numeric", opts: EUR },
+          { id: "Retour_service", label: "Retour au service", type: "Text", opts: WRAP,
+            desc: "Message affiché au service dans « Mes signalements »." },
+          { id: "Modifie_le", label: "Dernière action le", type: "DateTime:Europe/Paris",
+            opts: { dateFormat: "DD/MM/YYYY", timeFormat: "HH:mm", isCustomDateFormat: false, isCustomTimeFormat: false },
+            declencheur: { quand: "toute_modif", formule: "NOW()" } },
+          { id: "Modifie_par", label: "Dernière action par", type: "Text",
+            declencheur: { quand: "toute_modif", formule: "user.Name or user.Email" } },
+
+          // ---- Calculs (formules)
+          { groupe: "Calculs (formules, lecture seule)" },
+          { id: "Marche_libelle", label: "Marché", type: "Text", formule: `if $Marche:
+  return $Marche.Libelle
+saisie = " – ".join(x for x in [$Marche_saisi, $Marche_saisi_ref] if x)
+return (saisie or "Marché non précisé") + " (à normaliser)"` },
+          { id: "Famille", label: "Famille", type: "Text", formule: "$Typologie.Famille" },
+          { id: "Gravite_n", label: "Gravité (n)", type: "Int", formule: `g = str($Gravite or "")[:1]
+return int(g) if g.isdigit() else None` },
+          { id: "Delai_pec_jo", label: "Délai prise en charge (j. ouvrés)", type: "Int", formule: JO("$Date_signalement", "$Date_prise_en_charge") },
+          { id: "Delai_cloture_jo", label: "Délai clôture (j. ouvrés)", type: "Int", formule: JO("$Date_signalement", "$Date_cloture") },
+          { id: "Retard_j", label: "Retard (j)", type: "Int", formule: `if not $Date_prevue or $Typologie.Bloc != "delai":
+  return None
+fin = $Date_reelle or (($Date_cloture or TODAY()) if $Non_realise else None)
+if not fin:
+  return None
+return max(0, (fin - $Date_prevue).days)` },
+          { id: "Ecart_prix", label: "Écart de prix", type: "Numeric", opts: EUR, formule: `if $Nature == "Adéquation" or not $Prix_attendu or not $Prix_constate:
+  return None
+return ($Prix_constate - $Prix_attendu) * ($Quantite or 1)` },
+          { id: "Etayee", label: "Étayée", type: "Bool", formule: '$Niveau_preuve in ("Étayée", "Partielle")' },
+          { id: "A_normaliser", label: "À normaliser", type: "Bool", formule: 'not $Marche and $Statut != "Annulé"' },
+          { id: "Alertes", label: "Points d'attention", type: "Text", formule: `import datetime
+if $Statut == "Annulé" or str($Statut or "").startswith("Clos"):
+  return ""
+alertes = []
+if not $Courriel_recu:
+  alertes.append("Courriel non reçu")
+if not $Marche:
+  alertes.append("Marché à normaliser")
+if $Statut == "Nouveau" and $Date_signalement:
+  p = Parametres.lookupOne(Cle="delai_reponse_jo").Valeur
+  seuil = int(p) if str(p or "").isdigit() else 5
+  n, d = 0, $Date_signalement
+  while d < TODAY():
+    d += datetime.timedelta(days=1)
+    if d.weekday() < 5:
+      n += 1
+  if n > seuil:
+    alertes.append("Prise en charge en retard")
+return " · ".join(alertes)` },
+        ] },
+    ],
+
+    /* Pages créées par l'installateur (vues Grist) */
+    pages: [
+      { nom: "Signaler", widget: "signalement.html", table: "Fiches", acces: "Tous les agents" },
+      { nom: "Traitement", table: "Fiches", natif: true, acces: "Acheteurs",
+        colonnes: ["Numero", "Date_signalement", "Gravite", "Statut", "Alertes", "Marche_libelle", "Service", "Typologie",
+                   "Attendu", "Courriel_recu", "Niveau_preuve", "Acheteur_referent", "Delai_pec_jo"],
+        fiche: true },
+      { nom: "Normalisation", widget: "normalisation.html", table: "Fiches", acces: "Acheteurs" },
+      { nom: "Pilotage", widget: "pilotage.html", table: "Fiches", acces: "Acheteurs, encadrement" },
+      { nom: "Marchés", table: "Marches", natif: true, acces: "Acheteurs" },
+    ],
+  };
+})();
+if (typeof module !== "undefined") module.exports = SCHEMA;
+
+</script>
+<script>
+/* --- commun.js (inclus) --- */
+/* =====================================================================
+ *  commun.js — utilitaires partagés par les widgets Grist
+ *  « Signalements – marchés mutualisés » (pôle achats DPFAC – DIR-SG Grand Ouest)
+ *
+ *  Aucune donnée ici : uniquement du code. Les données vivent dans le document Grist.
+ * ===================================================================== */
+(function (global) {
+  "use strict";
+
+  /* ------------------------------------------------------------------ *
+   *  Paramétrage technique                                              *
+   * ------------------------------------------------------------------ */
+  // Instances Grist essayées pour charger l'API des widgets, après l'origine de la page hôte.
+  const ORIGINES_GRIST = ["https://grist.numerique.gouv.fr", "https://docs.getgrist.com"];
+  const TABLES = { params: "Parametres", services: "Services", users: "Utilisateurs", marches: "Marches",
+                   typos: "Typologies", fiches: "Fiches" };
+
+  /* ------------------------------------------------------------------ *
+   *  Utilitaires                                                        *
+   * ------------------------------------------------------------------ */
+  const $ = (s, el) => (el || document).querySelector(s);
+  const $$ = (s, el) => [...(el || document).querySelectorAll(s)];
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // fetchTable renvoie des colonnes {id:[…], Col:[…]} → tableau d'objets
+  const toRows = t => {
+    if (!t || !t.id) return [];
+    const keys = Object.keys(t).filter(k => !k.startsWith("gristHelper_"));
+    return t.id.map((_, i) => { const o = {}; keys.forEach(k => o[k] = t[k][i]); return o; });
+  };
+  // Référence : nombre, ["R", id], ou texte (colonne mal typée)
+  const refId = v => Array.isArray(v) ? v[1] : v;
+  // Dates Grist : secondes depuis 1970 (UTC), ou chaîne ISO
+  const toDate = v => {
+    if (v == null || v === "" || v === 0) return null;
+    const d = typeof v === "number" ? new Date(v * 1000) : new Date(v);
+    return isNaN(d) ? null : d;
+  };
+  const fmtDate = v => { const d = toDate(v); return d ? d.toLocaleDateString("fr-FR", { timeZone: "UTC" }) : ""; };
+  const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+  const isoToEpoch = iso => { const [y, m, d] = String(iso).split("-").map(Number); return Date.UTC(y, m - 1, d) / 1000; };
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error("délai dépassé")), ms))]);
+  // Texte sans accents, minuscules, ponctuation remplacée par des espaces
+  const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ").trim();
+  const listVal = v => Array.isArray(v) ? v.filter((x, i) => !(i === 0 && x === "L")) : (v ? String(v).split(/\s*,\s*/) : []);
+  // Jours ouvrés (lun.-ven.) après a jusqu'à b inclus, en UTC — même règle que les formules Grist
+  function joursOuvres(a, b) {
+    if (!a || !b) return null;
+    let n = 0; const d = new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate()));
+    const e = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
+    while (d.getTime() < e) { d.setUTCDate(d.getUTCDate() + 1); const w = d.getUTCDay(); if (w !== 0 && w !== 6) n++; }
+    return n;
+  }
+  // Stockage local protégé (la page doit fonctionner sans)
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* idem */ } }
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Connexion Grist                                                    *
+   * ------------------------------------------------------------------ */
+  function loadScript(src) {
+    return new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = src; s.onload = res; s.onerror = () => rej(new Error("chargement impossible : " + src));
+      document.head.appendChild(s);
+    });
+  }
+  /** Renvoie "grist" ou lève une erreur { code: "horsgrist" | "api" | "acces" }. */
+  async function connect() {
+    if (window === window.parent) throw Object.assign(new Error("hors Grist"), { code: "horsgrist" });
+    const origines = [];
+    try { if (document.referrer) origines.push(new URL(document.referrer).origin); } catch (e) { /* referrer absent */ }
+    ORIGINES_GRIST.forEach(o => { if (!origines.includes(o)) origines.push(o); });
+    for (const o of origines) {
+      try { await loadScript(o + "/grist-plugin-api.js"); if (window.grist) break; } catch (e) { /* origine suivante */ }
+    }
+    if (!window.grist) throw Object.assign(new Error("API Grist introuvable"), { code: "api" });
+    grist.ready({ requiredAccess: "full" });
+    try { await withTimeout(grist.docApi.listTables(), 5000); }
+    catch (e) { throw Object.assign(new Error("accès refusé"), { code: "acces" }); }
+    return "grist";
+  }
+
+  async function fetchRows(table) {
+    try { return toRows(await grist.docApi.fetchTable(table)); } catch (e) { return null; }
+  }
+
+  /** Métadonnées : types, choix et options des colonnes, par table. */
+  async function loadMeta() {
+    const T = toRows(await grist.docApi.fetchTable("_grist_Tables"));
+    const C = toRows(await grist.docApi.fetchTable("_grist_Tables_column"));
+    const byId = {}; T.forEach(t => byId[t.id] = t.tableId);
+    const meta = {};
+    C.forEach(c => {
+      const t = byId[c.parentId]; if (!t) return;
+      let o = {}; try { o = c.widgetOptions ? JSON.parse(c.widgetOptions) : {}; } catch (e) { o = {}; }
+      (meta[t] = meta[t] || {})[c.colId] = { type: c.type, choices: o.choices || [], options: o, label: c.label, ref: c.id };
+    });
+    return meta;
+  }
+  const colType = (meta, t, c) => meta && meta[t] && meta[t][c] ? meta[t][c].type : undefined;
+  /** Choix d'une colonne Choice / ChoiceList, lus dans Grist. */
+  const choices = (meta, t, c) => (meta && meta[t] && meta[t][c] && meta[t][c].choices) || [];
+
+  /** Encode une valeur selon le type réel de la colonne (document éventuellement mal typé).
+   *  Renvoie undefined si la colonne n'existe pas (on ne l'écrit pas), null si valeur vide. */
+  function encode(meta, table, col, val, kind) {
+    const known = meta && meta[table];
+    const t = colType(meta, table, col);
+    if (known && t === undefined) return undefined;
+    if (val === "" || val == null || (Array.isArray(val) && !val.length)) return null;
+    switch (kind) {
+      case "ref": return t && t.startsWith("Ref:") ? val.id : val.label;
+      case "date": return (!t || t === "Date" || t.startsWith("DateTime")) ? isoToEpoch(val) : val;
+      case "list": return (!t || t === "ChoiceList") ? ["L"].concat(val) : val.join(", ");
+      case "num": {
+        const n = Number(String(val).replace(/\s/g, "").replace(",", ".")); if (isNaN(n)) return null;
+        return (t === "Text" || t === "Any") ? String(n) : n;
+      }
+      case "bool": return (t === "Text") ? (val ? "Oui" : "Non") : !!val;
+      default: return val;
+    }
+  }
+
+  /** Paramètres (table Parametres : Cle → Valeur). */
+  async function loadParams() {
+    const rows = await fetchRows(TABLES.params) || [];
+    const p = {}; rows.forEach(r => { if (r.Cle) p[String(r.Cle).trim()] = r.Valeur == null ? "" : String(r.Valeur).trim(); });
+    return p;
+  }
+
+  /** Nom du siège d'un service (Siege vide → le service est lui-même un siège). */
+  function siegeOf(services) {
+    const byId = new Map(services.map(s => [s.id, s]));
+    return s => {
+      if (!s) return "Non rattaché";
+      const v = refId(s.Siege);
+      if (v == null || v === "" || v === 0) return s.Nom;
+      if (typeof v === "number") { const h = byId.get(v); return h ? h.Nom : s.Nom; }
+      return String(v);
+    };
+  }
+
+  /** Écran bloquant (pas de repli sur des données codées : tout vient de Grist). */
+  function fatal(el, titre, html) {
+    el.innerHTML = `<div class="fatal" role="alert"><div class="fatal-ico" aria-hidden="true">!</div>
+      <h2>${esc(titre)}</h2><div>${html}</div></div>`;
+  }
+  function messageConnexion(err) {
+    if (err && err.code === "horsgrist") return ["Ouvrez ce widget dans Grist",
+      "Cette page est un widget personnalisé : elle s'affiche dans le document Grist du pôle achats (<b>grist.numerique.gouv.fr</b>). Elle ne contient aucune donnée par elle-même."];
+    if (err && err.code === "acces") return ["Accès au document à autoriser",
+      "Le widget n'a pas accès au document. Dans le panneau de droite du widget, réglez le niveau d'accès sur <b>Accès complet au document</b>."];
+    return ["Connexion à Grist impossible", "L'API des widgets Grist n'a pas pu être chargée. Rechargez la page ; si le problème persiste, contactez le pôle achats."];
+  }
+
+  global.SIG = { TABLES, $, $$, esc, toRows, refId, toDate, fmtDate, todayISO, isoToEpoch, withTimeout, norm, listVal,
+    joursOuvres, store, connect, fetchRows, loadMeta, colType, choices, encode, loadParams, siegeOf, fatal, messageConnexion };
+})(window);
+
+</script>
+<script>
+(function(){
+"use strict";
+const { $, esc, toRows, connect, fatal, messageConnexion, isoToEpoch } = SIG;
+
+/* ------------------------------------------------------------------ *
+ *  Paramétrage                                                        *
+ * ------------------------------------------------------------------ */
+const BASE = new URL(".", location.href).href;          // dossier publié (GitHub Pages)
+const ORDRE_PAGES = ["Signaler", "Traitement", "Normalisation", "Pilotage", "Marchés", "Services", "Utilisateurs", "Typologies", "Paramètres"];
+const NOMS_PAGES_TABLES = { Fiches: "Traitement", Marches: "Marchés", Parametres: "Paramètres" };
+const JEU_DE_TEST = ["Services", "Utilisateurs", "Marches", "Fiches"];
+const MEMO_ACL = "signalements";
+
+/* ------------------------------------------------------------------ *
+ *  Utilitaires                                                        *
+ * ------------------------------------------------------------------ */
+const log = (msg) => { const el = $("#log"); if (el) { el.textContent += msg + "\n"; el.scrollTop = el.scrollHeight; } };
+const act = (actions) => grist.docApi.applyUserActions(actions);
+const isFormula = c => !!c.formule;
+const cols = t => t.colonnes.filter(c => c.id);
+
+/** Analyse CSV (RFC 4180 : guillemets, retours à la ligne dans les champs). */
+function parseCSV(txt) {
+  const rows = []; let row = [], f = "", q = false;
+  txt = txt.replace(/^﻿/, "");
+  for (let i = 0; i < txt.length; i++) {
+    const c = txt[i];
+    if (q) { if (c === '"') { if (txt[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && txt[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; }
+    else f += c;
+  }
+  if (f !== "" || row.length) { row.push(f); rows.push(row); }
+  const head = rows.shift() || [];
+  return rows.filter(r => r.some(x => x !== "")).map(r => Object.fromEntries(head.map((h, i) => [h.trim(), r[i] == null ? "" : r[i]])));
+}
+/* Fichiers CSV choisis sur le poste (nom de fichier → File) : rien n'est lu sur GitHub */
+const FICHIERS = new Map();
+const nomFichier = path => String(path).split("/").pop();
+const AMORCAGE = () => SCHEMA.tables.filter(t => t.amorcage).map(t => nomFichier(t.amorcage));
+const TEST = () => JEU_DE_TEST.map(t => "test_" + t + ".csv");
+async function loadCSV(path) {
+  const f = FICHIERS.get(nomFichier(path));
+  if (!f) throw new Error("fichier non sélectionné : " + nomFichier(path));
+  return parseCSV(await f.text());
+}
+function renderFichiers() {
+  const el = $("#csv-list"); if (!el) return;
+  const st = n => FICHIERS.has(n) ? `<span class="st-ok">✓ ${esc(n)}</span>` : `<span class="muted">${esc(n)}</span>`;
+  el.innerHTML = `Amorçage : ${AMORCAGE().map(st).join(" · ")}<br>Jeu de test : ${TEST().map(st).join(" · ")}`;
+}
+
+/* ------------------------------------------------------------------ *
+ *  État du document                                                   *
+ * ------------------------------------------------------------------ */
+let M = null;
+async function readMeta() {
+  const f = t => grist.docApi.fetchTable(t).then(toRows);
+  const [tables, columns, views, sections, fields, pages, aclRes, aclRules] = await Promise.all([
+    f("_grist_Tables"), f("_grist_Tables_column"), f("_grist_Views"), f("_grist_Views_section"),
+    f("_grist_Views_section_field"), f("_grist_Pages"), f("_grist_ACLResources"), f("_grist_ACLRules")]);
+  const tByName = {}; tables.forEach(t => tByName[t.tableId] = t);
+  const colsOf = {}; columns.forEach(c => { const t = tables.find(x => x.id === c.parentId); if (t) (colsOf[t.tableId] = colsOf[t.tableId] || {})[c.colId] = c; });
+  M = { tables, columns, views, sections, fields, pages, aclRes, aclRules, tByName, colsOf };
+  return M;
+}
+async function rowCount(table) { try { const t = await grist.docApi.fetchTable(table); return t.id.length; } catch (e) { return 0; } }
+
+/** Ce qui manque : tables, colonnes, pages. */
+function plan() {
+  const res = [];
+  SCHEMA.tables.forEach(t => {
+    const exist = M.tByName[t.id];
+    const have = M.colsOf[t.id] || {};
+    const missing = cols(t).filter(c => !have[c.id]);
+    const wrongType = cols(t).filter(c => have[c.id] && have[c.id].type !== c.type && !(c.type.startsWith("DateTime") && have[c.id].type.startsWith("DateTime")));
+    res.push({ t, exist: !!exist, missing, wrongType });
+  });
+  return res;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Rendu                                                              *
+ * ------------------------------------------------------------------ */
+async function render() {
+  await readMeta();
+  const p = plan();
+  const counts = {}; for (const x of p) counts[x.t.id] = x.exist ? await rowCount(x.t.id) : 0;
+  const views = new Set(M.views.map(v => v.name));
+  const aclDone = M.aclRules.some(r => String(r.memo || "").startsWith(MEMO_ACL));
+  const toDo = p.some(x => !x.exist || x.missing.length);
+  $("#app").innerHTML = `
+    <h2>État du document</h2>
+    <div class="tbl-wrap"><table><thead><tr><th>Table</th><th>État</th><th>Lignes</th><th>À faire</th></tr></thead><tbody>
+    ${p.map(x => `<tr><td><b>${esc(x.t.id)}</b><br><span class="muted">${esc(x.t.role)}</span></td>
+      <td>${!x.exist ? '<span class="st-add">à créer</span>' : x.missing.length ? '<span class="st-add">à compléter</span>' : '<span class="st-ok">en place</span>'}</td>
+      <td>${counts[x.t.id]}</td>
+      <td>${!x.exist ? cols(x.t).length + " colonnes" : x.missing.length ? "colonnes : " + x.missing.map(c => esc(c.id)).join(", ") : "–"}
+        ${x.wrongType.length ? `<br><span class="st-warn">Type différent (non modifié) : ${x.wrongType.map(c => esc(c.id) + " (" + esc(M.colsOf[x.t.id][c.id].type) + " au lieu de " + esc(c.type) + ")").join(", ")}</span>` : ""}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="muted" style="font-size:13px">Pages : ${ORDRE_PAGES.map(n => views.has(n) ? `<span class="st-ok">${esc(n)}</span>` : `<span class="st-add">${esc(n)}</span>`).join(" · ")}<br>
+    Règles d'accès du dispositif : ${aclDone ? '<span class="st-ok">en place</span>' : '<span class="st-add">absentes</span>'}</p>
+
+    <div class="opts">
+      <label><input type="checkbox" id="o-struct" checked ${toDo ? "" : "disabled"}><span><b>Créer ou compléter les tables</b>
+        <small>Ajoute ce qui manque. Aucune colonne existante n'est modifiée ni supprimée.</small></span></label>
+      <label><input type="checkbox" id="o-seed" checked><span><b>Charger les listes d'amorçage</b>
+        <small>Paramètres, typologies, sièges : fichiers CSV du dossier <code>amorcage</code>, à choisir ci-dessous. Une ligne déjà présente (même clé) n'est pas dupliquée.</small></span></label>
+      <label><input type="checkbox" id="o-pages" checked><span><b>Créer les pages</b>
+        <small>Signaler, Traitement (liste + fiche), Normalisation, Pilotage, puis les référentiels. Une page existante n'est pas modifiée.</small></span></label>
+      <label><input type="checkbox" id="o-acl" ${aclDone ? "disabled" : "checked"}><span><b>Créer les règles d'accès conseillées</b>
+        <small>Agents : créent des fiches et ne voient que les leurs (ou celles de leur service). Acheteurs (table Utilisateurs, rôle Acheteur) et propriétaires : tout.
+        Testez ensuite avec <i>Permissions avancées › Voir en tant que</i>.</small></span></label>
+      <label><input type="checkbox" id="o-test"><span><b>Charger le jeu de test</b> (205 fiches fictives)
+        <small>Uniquement dans un <b>document de test</b> : fichiers <code>test_….csv</code> du dossier <code>jeu-de-test</code>, à choisir ci-dessous.</small></span></label>
+    </div>
+    <div class="pick"><label for="csv"><b>Fichiers CSV de votre poste</b></label>
+      <small>Sélectionnez en une fois tous les fichiers des dossiers <code>amorcage</code> (et <code>jeu-de-test</code> pour un document de test).
+      Ils sont lus par votre navigateur et envoyés à Grist uniquement : ils ne sont jamais publiés sur GitHub.</small>
+      <input type="file" id="csv" multiple accept=".csv,text/csv"><div id="csv-list"></div></div>
+    <button class="btn primary" id="go">Lancer l'installation</button>
+    <div id="log" aria-live="polite"></div>`;
+  $("#go").onclick = run;
+  $("#csv").onchange = e => { [...e.target.files].forEach(f => FICHIERS.set(f.name, f)); renderFichiers(); };
+  renderFichiers();
+}
+
+/* ------------------------------------------------------------------ *
+ *  Installation                                                       *
+ * ------------------------------------------------------------------ */
+async function run() {
+  const btn = $("#go"); btn.disabled = true; btn.textContent = "Installation…";
+  const o = id => $("#" + id).checked && !$("#" + id).disabled;
+  const opt = { struct: o("o-struct"), seed: o("o-seed"), pages: o("o-pages"), acl: o("o-acl"), test: o("o-test") };
+  const manque = (opt.seed ? AMORCAGE() : []).concat(opt.test ? TEST() : []).filter(n => !FICHIERS.has(n));
+  if (manque.length) {
+    $("#banner").innerHTML = `<div class="banner err"><b>Fichiers CSV à sélectionner :</b> ${manque.map(esc).join(", ")}. Utilisez « Fichiers CSV de votre poste », ou décochez l'option correspondante.</div>`;
+    btn.disabled = false; btn.textContent = "Lancer l'installation"; return;
+  }
+  if (opt.test && !confirm("Charger 205 fiches FICTIVES dans ce document ?\nÀ réserver à un document de test.")) { btn.disabled = false; btn.textContent = "Lancer l'installation"; return; }
+  try {
+    if (opt.struct) await installStructure();
+    if (opt.seed) { for (const t of SCHEMA.tables.filter(t => t.amorcage)) await seed(t.id, t.amorcage); }
+    if (opt.test) { for (const t of JEU_DE_TEST) await seed(t, "test_" + t + ".csv"); }
+    if (opt.pages) await installPages();
+    if (opt.acl) await installACL();
+    log("✓ Installation terminée.");
+    $("#banner").innerHTML = `<div class="banner ok"><b>Installation terminée.</b> Vous pouvez supprimer cette page « Installation » du document. Étape suivante : compléter les tables Services et Utilisateurs (voir le guide).</div>`;
+  } catch (e) {
+    log("✗ " + (e && e.message || e));
+    $("#banner").innerHTML = `<div class="banner err"><b>L'installation s'est arrêtée :</b> ${esc(e && e.message || e)}. Ce qui a été fait est conservé ; relancez après correction.</div>`;
+  }
+  btn.textContent = "Terminé";
+  setTimeout(async () => { const logTxt = $("#log").textContent; await render(); $("#log").textContent = logTxt; }, 400);
+}
+
+/** 1. Tables et colonnes */
+async function installStructure() {
+  await readMeta();
+  const created = [];   // [table, colonne] créées dans cette passe : on leur applique libellés et options
+  // a) tables absentes : colonnes de données (et à déclencheur) d'abord
+  for (const t of SCHEMA.tables) {
+    const dataCols = cols(t).filter(c => !isFormula(c));
+    if (!M.tByName[t.id]) {
+      log("Création de la table " + t.id + "…");
+      await act([["AddTable", t.id, dataCols.map(c => ({ id: c.id, type: c.type, isFormula: false, formula: c.declencheur ? c.declencheur.formule : "" }))]]);
+      dataCols.forEach(c => created.push([t.id, c]));
+    } else {
+      const have = M.colsOf[t.id] || {};
+      const miss = dataCols.filter(c => !have[c.id]);
+      if (miss.length) {
+        log("Table " + t.id + " : ajout de " + miss.map(c => c.id).join(", "));
+        await act(miss.map(c => ["AddColumn", t.id, c.id, { type: c.type, isFormula: false, formula: c.declencheur ? c.declencheur.formule : "" }]));
+        miss.forEach(c => created.push([t.id, c]));
+      }
+    }
+  }
+  // b) colonnes formules, une fois toutes les tables présentes (formules croisées entre tables)
+  await readMeta();
+  for (const t of SCHEMA.tables) {
+    const have = M.colsOf[t.id] || {};
+    const miss = cols(t).filter(c => isFormula(c) && !have[c.id]);
+    if (miss.length) {
+      log("Table " + t.id + " : formules " + miss.map(c => c.id).join(", "));
+      await act(miss.map(c => ["AddColumn", t.id, c.id, { type: c.type, isFormula: true, formula: c.formule }]));
+      miss.forEach(c => created.push([t.id, c]));
+    }
+  }
+  if (!created.length) { log("Structure déjà complète."); return; }
+  // c) libellés, descriptions, options d'affichage, déclencheurs, colonnes affichées des références
+  await readMeta();
+  const ref = (t, c) => M.colsOf[t] && M.colsOf[t][c] ? M.colsOf[t][c].id : null;
+  const untie = [], meta = [], display = [];
+  for (const [tid, c] of created) {
+    const id = ref(tid, c.id); if (!id) continue;
+    untie.push(["UpdateRecord", "_grist_Tables_column", id, { untieColIdFromLabel: true }]);
+    const upd = { label: c.label || c.id, description: c.desc || "" };
+    if (c.opts) upd.widgetOptions = JSON.stringify(c.opts);
+    if (c.declencheur) {
+      const d = c.declencheur;
+      if (d.quand === "creation") { upd.recalcWhen = 0; upd.recalcDeps = null; }
+      else if (d.quand === "toute_modif") { upd.recalcWhen = 2; upd.recalcDeps = null; }
+      else if (d.quand === "champs") { upd.recalcWhen = 0; upd.recalcDeps = ["L"].concat(d.champs.map(x => ref(tid, x)).filter(Boolean)); }
+    }
+    meta.push(["UpdateRecord", "_grist_Tables_column", id, upd]);
+    if (c.affiche && c.type.startsWith("Ref:")) {
+      const cible = c.type.slice(4), vis = ref(cible, c.affiche);
+      if (vis) {
+        meta.push(["UpdateRecord", "_grist_Tables_column", id, { visibleCol: vis }]);
+        display.push(["SetDisplayFormula", tid, null, id, "$" + c.id + "." + c.affiche]);
+      }
+    }
+  }
+  log("Libellés, listes de choix et déclencheurs (" + created.length + " colonnes)…");
+  await act(untie); await act(meta); if (display.length) await act(display);
+}
+
+/** Conversion d'une valeur CSV selon le type de colonne */
+function convert(type, v) {
+  if (v == null || v === "") return null;
+  if (type === "Bool") return /^(1|true|vrai|oui|x)$/i.test(v.trim());
+  if (type === "Int") return parseInt(v, 10);
+  if (type === "Numeric") return Number(String(v).replace(",", "."));
+  if (type === "Date") return isoToEpoch(v);
+  if (type.startsWith("DateTime")) return Date.parse(v) / 1000;
+  if (type === "ChoiceList") return ["L"].concat(v.split(";").map(x => x.trim()).filter(Boolean));
+  return v;
+}
+/** Index libellé → id pour résoudre les références écrites en clair dans les CSV */
+async function labelIndex(table) {
+  const rows = toRows(await grist.docApi.fetchTable(table)); const idx = new Map();
+  rows.forEach(r => ["Libelle", "Intitule", "Nom", "Code", "Email", "Cle"].forEach(k => { if (r[k] != null && r[k] !== "" && !idx.has(String(r[k]))) idx.set(String(r[k]), r.id); }));
+  return idx;
+}
+
+/** 2. Chargement d'un CSV (amorçage ou test), sans doublon sur la première colonne */
+async function seed(table, path) {
+  await readMeta();
+  if (!M.tByName[table]) throw new Error("table " + table + " absente : créez d'abord la structure");
+  const data = await loadCSV(path); if (!data.length) return;
+  const have = M.colsOf[table];
+  const keyCol = Object.keys(data[0])[0];
+  const existing = toRows(await grist.docApi.fetchTable(table));
+  const keys = new Set(existing.map(r => String(r[keyCol] == null ? "" : r[keyCol])));
+  const todo = data.filter(r => !keys.has(String(r[keyCol])));
+  if (!todo.length) { log(table + " : rien à ajouter (" + path + ")."); return; }
+  const usable = Object.keys(data[0]).filter(c => have[c]);
+  const refCols = usable.filter(c => have[c].type.startsWith("Ref:"));
+  const selfRef = refCols.filter(c => have[c].type === "Ref:" + table);
+  const otherRef = refCols.filter(c => !selfRef.includes(c));
+  const idx = {}; for (const c of otherRef) idx[c] = await labelIndex(have[c].type.slice(4));
+  const values = {};
+  usable.filter(c => !selfRef.includes(c)).forEach(c => {
+    values[c] = todo.map(r => {
+      if (otherRef.includes(c)) { const v = r[c]; return v ? (idx[c].get(v) || null) : null; }
+      return convert(have[c].type, r[c]);
+    });
+  });
+  // Les colonnes à déclencheur absentes du CSV restent calculées par Grist (N°, dates…)
+  const res = await act([["BulkAddRecord", table, todo.map(() => null), values]]);
+  const ids = res.retValues[0];
+  log(table + " : " + ids.length + " ligne(s) ajoutée(s) depuis " + path);
+  const unresolved = otherRef.flatMap(c => todo.filter((r, i) => r[c] && !values[c][i]).map(r => c + "=" + r[c]));
+  if (unresolved.length) log("  ⚠ références non trouvées : " + [...new Set(unresolved)].slice(0, 6).join(" ; "));
+  if (selfRef.length) {
+    const sidx = await labelIndex(table); const upd = {};
+    selfRef.forEach(c => upd[c] = todo.map(r => r[c] ? (sidx.get(r[c]) || null) : null));
+    await act([["BulkUpdateRecord", table, ids, upd]]);
+  }
+}
+
+/** 3. Pages */
+async function installPages() {
+  await readMeta();
+  const fichesRef = M.tByName.Fiches && M.tByName.Fiches.id;
+  if (!fichesRef) throw new Error("table Fiches absente");
+  const viewByName = n => M.views.find(v => v.name === n);
+  const tableViews = () => M.views.filter(v => M.tables.some(t => t.primaryViewId === v.id));
+
+  // a) pages créées automatiquement avec les tables : noms en français
+  for (const t of M.tables) {
+    const v = M.views.find(x => x.id === t.primaryViewId);
+    if (v && NOMS_PAGES_TABLES[t.tableId] && v.name === t.tableId && !viewByName(NOMS_PAGES_TABLES[t.tableId])) {
+      await act([["UpdateRecord", "_grist_Views", v.id, { name: NOMS_PAGES_TABLES[t.tableId] }]]);
+      log("Page " + t.tableId + " renommée « " + NOMS_PAGES_TABLES[t.tableId] + " »");
+    }
+  }
+  await readMeta();
+
+  // b) Traitement : liste filtrée (fiches non closes) + fiche détaillée liée
+  const vT = viewByName("Traitement");
+  if (vT && !M.sections.some(s => s.parentId === vT.id && s.parentKey === "single")) {
+    const list = M.sections.find(s => s.parentId === vT.id && s.parentKey === "record");
+    const pageSpec = SCHEMA.pages.find(p => p.nom === "Traitement");
+    const cRef = c => M.colsOf.Fiches[c] && M.colsOf.Fiches[c].id;
+    if (list) {
+      const keep = pageSpec.colonnes.map(cRef).filter(Boolean);
+      const fields = M.fields.filter(f => f.parentId === list.id);
+      const remove = fields.filter(f => !keep.includes(f.colRef)).map(f => f.id);
+      const acts = [];
+      if (remove.length) acts.push(["BulkRemoveRecord", "_grist_Views_section_field", remove]);
+      fields.filter(f => keep.includes(f.colRef)).forEach(f => acts.push(["UpdateRecord", "_grist_Views_section_field", f.id, { parentPos: keep.indexOf(f.colRef) + 1 }]));
+      acts.push(["UpdateRecord", "_grist_Views_section", list.id, { title: "Fiches à traiter",
+        sortColRefs: JSON.stringify([-cRef("Gravite_n"), cRef("Date_signalement")].filter(Boolean)) }]);
+      acts.push(["AddRecord", "_grist_Filters", null, { viewSectionRef: list.id, colRef: cRef("Statut"), pinned: true,
+        filter: JSON.stringify({ excluded: ["Clos – résolu", "Clos – non résolu", "Annulé"] }) }]);
+      await act(acts);
+      const r = await act([["CreateViewSection", fichesRef, vT.id, "single", null, null]]);
+      const card = r.retValues[0].sectionRef;
+      await act([["UpdateRecord", "_grist_Views_section", card, { title: "Fiche", linkSrcSectionRef: list.id, linkSrcColRef: 0, linkTargetColRef: 0 }],
+                 ["UpdateRecord", "_grist_Views", vT.id, { layoutSpec: JSON.stringify({ children: [{ children: [{ leaf: list.id }, { leaf: card }] }] }) }]]);
+      log("Page Traitement : liste des fiches ouvertes + fiche détaillée");
+    }
+  }
+
+  // c) pages de widgets
+  for (const p of SCHEMA.pages.filter(p => p.widget)) {
+    if (viewByName(p.nom)) { log("Page " + p.nom + " : déjà présente"); continue; }
+    const r = await act([["CreateViewSection", fichesRef, 0, "custom", null, null]]);
+    const { viewRef, sectionRef } = r.retValues[0];
+    const customView = { mode: "url", url: new URL(p.widget, BASE).href, access: "full", pluginId: "", sectionId: "",
+                         renderAfterReady: false, widgetId: null, widgetDef: null };
+    await act([["UpdateRecord", "_grist_Views", viewRef, { name: p.nom }],
+               ["UpdateRecord", "_grist_Views_section", sectionRef, { title: p.nom, options: JSON.stringify({ customView: JSON.stringify(customView) }) }]]);
+    log("Page " + p.nom + " → " + customView.url);
+  }
+
+  // d) ordre des pages
+  await readMeta();
+  const acts = [];
+  ORDRE_PAGES.forEach((n, i) => { const v = viewByName(n); const pg = v && M.pages.find(p => p.viewRef === v.id); if (pg) acts.push(["UpdateRecord", "_grist_Pages", pg.id, { pagePos: i + 1, indentation: 0 }]); });
+  let pos = ORDRE_PAGES.length + 1;
+  M.pages.filter(pg => !acts.some(a => a[2] === pg.id)).sort((a, b) => a.pagePos - b.pagePos).forEach(pg => acts.push(["UpdateRecord", "_grist_Pages", pg.id, { pagePos: pos++ }]));
+  if (acts.length) await act(acts);
+  log("Pages ordonnées.");
+}
+
+/** 4. Règles d'accès conseillées */
+async function installACL() {
+  await readMeta();
+  if (M.aclRules.some(r => String(r.memo || "").startsWith(MEMO_ACL))) { log("Règles d'accès déjà présentes."); return; }
+  const ACHAT = 'user.Access == OWNER or user.Profil.Role == "Acheteur"';
+  const R = {
+    "*": [{ userAttributes: JSON.stringify({ name: "Profil", tableId: "Utilisateurs", charId: "Email", lookupColId: "Email" }) }],
+    Fiches: [
+      { f: ACHAT, p: "+CRUD", m: "acheteurs et propriétaires : tout" },
+      { f: 'newRec.Statut not in ("", "Nouveau") or newRec.Niveau_preuve or newRec.Issue or newRec.Retour_service or newRec.Courriel_recu or newRec.Penalites or newRec.Refactions',
+        p: "-C", m: "un agent ne crée pas de fiche déjà traitée" },
+      { f: "rec.Cree_par == user.Email or (user.Profil.Service and rec.Service == user.Profil.Service)", p: "+R", m: "agent : ses fiches et celles de son service" },
+      { f: "", p: "+C-RUD", m: "agent : création seulement" } ],
+    Utilisateurs: [
+      { f: ACHAT, p: "+CRUD", m: "acheteurs : gestion des profils" },
+      { f: "rec.Email == user.Email", p: "+R", m: "chacun voit son profil" },
+      { f: "", p: "-CRUD", m: "" } ],
+    Marches: [ { f: ACHAT, p: "+CRUD", m: "acheteurs : référentiel" }, { f: "", p: "+R-CUD", m: "agents : lecture (recherche)" } ],
+    Services: [ { f: ACHAT, p: "+CRUD", m: "" }, { f: "", p: "+R-CUD", m: "" } ],
+    Typologies: [ { f: ACHAT, p: "+CRUD", m: "" }, { f: "", p: "+R-CUD", m: "" } ],
+    Parametres: [ { f: "user.Access == OWNER", p: "+CRUD", m: "" }, { f: "", p: "+R-CUD", m: "" } ],
+  };
+  // Ressources (table, toutes colonnes)
+  const res = {};
+  for (const t of Object.keys(R)) {
+    const ex = M.aclRes.find(r => r.tableId === t && r.colIds === "*");
+    res[t] = ex ? ex.id : (await act([["AddRecord", "_grist_ACLResources", null, { tableId: t, colIds: "*" }]])).retValues[0];
+  }
+  let pos = Math.max(0, ...M.aclRules.map(r => r.rulePos || 0)) + 1;
+  const acts = [];
+  // Attribut utilisateur « Profil » (ligne de Utilisateurs dont Email = courriel de connexion)
+  acts.push(["AddRecord", "_grist_ACLRules", null, { resource: res["*"], userAttributes: R["*"][0].userAttributes, aclFormula: "", permissionsText: "", rulePos: pos++, memo: MEMO_ACL + " : profil" }]);
+  for (const t of Object.keys(R).filter(t => t !== "*")) {
+    R[t].forEach(r => acts.push(["AddRecord", "_grist_ACLRules", null, { resource: res[t], aclFormula: r.f, permissionsText: r.p, rulePos: pos++, memo: MEMO_ACL + (r.m ? " : " + r.m : "") }]));
+  }
+  await act(acts);
+  log("Règles d'accès créées (" + acts.length + "). Vérifiez-les dans « Permissions avancées ».");
+}
+
+/* ------------------------------------------------------------------ *
+ *  Démarrage                                                          *
+ * ------------------------------------------------------------------ */
+(async function start() {
+  try { await connect(); }
+  catch (e) { const [t, h] = messageConnexion(e); fatal($("#app"), t, h); return; }
+  try { await render(); }
+  catch (e) { fatal($("#app"), "Lecture du document impossible", esc(e && e.message || e)); }
+})();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signalement marchés mutualisés</title>
+<!--
+  Widget Grist « Signaler une difficulté sur un marché mutualisé »
+  Pôle achats · DPFAC – DIR-SG Grand Ouest
+  - Dans Grist : page « Signaler » (créée par installation.html), ou Ajouter une page > Personnalisée >
+    URL personnalisée > « Accès complet au document ».
+  - Ne contient AUCUNE donnée : services, marchés, typologies, listes de choix et paramètres sont lus dans Grist.
+  - Pas de pièce jointe dans Grist (RGPD) : à l'enregistrement, le widget prépare un courriel de transmission
+    (objet structuré, résumé de la fiche) que l'agent complète avec ses pièces et envoie depuis sa messagerie.
+-->
+<style>
+/* --- commun.css (inclus) --- */
+/* =====================================================================
+ *  commun.css — identité visuelle partagée des widgets « Signalements »
+ *  Clair / sombre via variables CSS (prefers-color-scheme + data-theme).
+ * ===================================================================== */
+:root{
+  --bg:#f6f6f9; --surface:#ffffff; --surface-2:#f0f0f7; --line:#dddde6; --line-strong:#b9b9c9; --grid:#ececf2;
+  --ink:#161616; --ink-2:#3a3a4a; --muted:#666677;
+  --accent:#000091; --accent-ink:#ffffff; --accent-soft:#e3e3fd; --focus:#0a76f6;
+  --ok:#18753c; --ok-soft:#dffbe7; --warn:#b77d00; --warn-soft:#fdf3dc; --crit:#ce0500; --crit-soft:#fde4e4;
+  --g1:#1f8d49; --g1s:#e4f6ea; --g2:#b7791f; --g2s:#fdf3dc; --g3:#d64d00; --g3s:#fde8dc; --g4:#ce0500; --g4s:#fde4e4;
+  --radius:10px; --shadow:0 1px 2px rgba(0,0,30,.06),0 4px 14px rgba(0,0,60,.06);
+  --font:Marianne,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121218; --surface:#1c1c25; --surface-2:#252532; --line:#33334a; --line-strong:#4a4a66; --grid:#2a2a36;
+    --ink:#ededf5; --ink-2:#c8c8d8; --muted:#9a9ab0;
+    --accent:#8585f6; --accent-ink:#0d0d26; --accent-soft:#2a2a55; --focus:#6ea8ff;
+    --ok:#4fd187; --ok-soft:#163a25; --warn:#f0c060; --warn-soft:#3a2f12; --crit:#ff6b66; --crit-soft:#421616;
+    --g1:#4fd187; --g1s:#163a25; --g2:#f0c060; --g2s:#3a2f12; --g3:#ff8c4a; --g3s:#40220f; --g4:#ff6b66; --g4s:#421616;
+    --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121218; --surface:#1c1c25; --surface-2:#252532; --line:#33334a; --line-strong:#4a4a66; --grid:#2a2a36;
+  --ink:#ededf5; --ink-2:#c8c8d8; --muted:#9a9ab0;
+  --accent:#8585f6; --accent-ink:#0d0d26; --accent-soft:#2a2a55; --focus:#6ea8ff;
+  --ok:#4fd187; --ok-soft:#163a25; --warn:#f0c060; --warn-soft:#3a2f12; --crit:#ff6b66; --crit-soft:#421616;
+  --g1:#4fd187; --g1s:#163a25; --g2:#f0c060; --g2s:#3a2f12; --g3:#ff8c4a; --g3s:#40220f; --g4:#ff6b66; --g4s:#421616;
+  --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+h1{font-size:19px;line-height:1.25;margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:17px;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.brand{display:flex;gap:12px;align-items:center}
+.flag{flex:none;width:6px;height:38px;border-radius:3px;background:linear-gradient(var(--accent) 0 33%,var(--surface) 33% 66%,#e1000f 66%);border:1px solid var(--line)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px}
+.banner{border-radius:var(--radius);padding:10px 14px;font-size:13.5px;margin-bottom:12px;border:1px solid var(--line);background:var(--surface)}
+.banner.warn{border-color:var(--warn);background:var(--warn-soft)}
+.banner.err{border-color:var(--crit);background:var(--crit-soft)}
+.banner.ok{border-color:var(--ok);background:var(--ok-soft)}
+.btn{font:inherit;font-weight:600;border-radius:8px;padding:9px 16px;cursor:pointer;border:1.5px solid var(--accent);background:transparent;color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.link{background:none;border:0;color:var(--accent);font:inherit;font-size:13px;cursor:pointer;text-decoration:underline;padding:0}
+input[type=text],input[type=date],input[type=number],input[type=search],input[type=email],textarea,select{
+  width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:4px;background:var(--surface-2);color:var(--ink-2);margin-right:6px;vertical-align:1px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.empty{text-align:center;color:var(--muted);padding:24px 10px;font-size:14px}
+.muted{color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hidden{display:none!important}
+.fatal{max-width:560px;margin:40px auto;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 24px}
+.fatal-ico{width:42px;height:42px;border-radius:50%;margin:0 auto 10px;display:grid;place-items:center;font-weight:800;font-size:22px;background:var(--warn-soft);color:var(--warn)}
+.fatal div{color:var(--ink-2);font-size:14px}
+.loading{text-align:center;color:var(--muted);padding:40px 10px}
+
+</style>
+<style>
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+header.top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:999px}
+.tab{border:0;background:transparent;color:var(--ink-2);padding:7px 14px;border-radius:999px;font:inherit;font-size:14px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--accent);font-weight:600;box-shadow:var(--shadow)}
+.count{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;text-align:center}
+.steps{display:flex;gap:6px;margin-bottom:18px}
+.step{flex:1;display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted)}
+.step i{display:block;height:4px;border-radius:2px;background:var(--line)}
+.step.on{color:var(--accent);font-weight:600}.step.on i,.step.done i{background:var(--accent)}
+.hint{color:var(--muted);font-size:13px;margin:0 0 16px}
+.field{margin:0 0 18px}
+.lbl{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+.lbl .opt{font-weight:400;color:var(--muted);font-size:12.5px;margin-left:6px}
+.lbl .req{color:var(--g4);margin-left:2px}
+.help{font-size:12.5px;color:var(--muted);margin-top:5px}
+textarea{min-height:110px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+@media (max-width:560px){.grid2,.grid3{grid-template-columns:1fr}}
+.tiles{display:grid;gap:10px}
+.tiles.two{grid-template-columns:1fr 1fr}
+.tiles.four{grid-template-columns:repeat(4,1fr)}
+@media (max-width:560px){.tiles.two{grid-template-columns:1fr}.tiles.four{grid-template-columns:1fr 1fr}}
+.tile{text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:12px 14px;font:inherit;color:var(--ink);cursor:pointer;transition:border-color .12s,background .12s}
+.tile:hover{border-color:var(--line-strong)}
+.tile[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.tile b{display:block;font-size:14.5px}
+.tile span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.tile .ico{font-size:20px;margin-bottom:4px;display:block}
+.grav{border-left-width:5px}
+.grav[data-g="1"]{border-left-color:var(--g1)}.grav[data-g="2"]{border-left-color:var(--g2)}.grav[data-g="3"]{border-left-color:var(--g3)}.grav[data-g="4"]{border-left-color:var(--g4)}
+.grav[data-g="1"][aria-pressed="true"]{background:var(--g1s);border-color:var(--g1)}
+.grav[data-g="2"][aria-pressed="true"]{background:var(--g2s);border-color:var(--g2)}
+.grav[data-g="3"][aria-pressed="true"]{background:var(--g3s);border-color:var(--g3)}
+.grav[data-g="4"][aria-pressed="true"]{background:var(--g4s);border-color:var(--g4)}
+.fam{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:14px 0 6px;font-weight:600}
+.fam:first-child{margin-top:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13.5px;cursor:pointer;text-align:left}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.combo{position:relative}
+.list{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,40,.12);max-height:260px;overflow:auto;display:none}
+.list.open{display:block}
+.opt-row{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+.opt-row:last-child{border-bottom:0}
+.opt-row:hover,.opt-row.act{background:var(--accent-soft)}
+.opt-row small{display:block;color:var(--muted);font-size:12px}
+.picked{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:var(--radius);padding:10px 12px}
+.picked small{display:block;color:var(--muted);font-size:12.5px}
+.cond{border-left:3px solid var(--accent);background:var(--surface-2);padding:12px 14px;border-radius:0 8px 8px 0;margin:0 0 18px}
+.cond .lbl{font-size:13.5px}
+.calc{font-size:13px;color:var(--accent);font-weight:600;margin-top:6px}
+.counter{text-align:right;font-size:12px;color:var(--muted);margin-top:4px}
+.actions{display:flex;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:wrap}
+.err-msg{color:var(--g4);font-size:13px;margin-top:6px;display:none}
+.field.invalid .err-msg{display:block}
+.field.invalid input,.field.invalid textarea,.field.invalid select{border-color:var(--g4)}
+.recap{display:grid;grid-template-columns:150px 1fr;gap:6px 12px;font-size:13.5px;background:var(--surface-2);padding:14px;border-radius:var(--radius);margin:0 0 16px}
+.recap dt{color:var(--muted)}.recap dd{margin:0;overflow-wrap:anywhere}
+@media (max-width:560px){.recap{grid-template-columns:1fr}.recap dt{margin-top:6px}}
+.check{list-style:none;padding:0;margin:0 0 10px;display:flex;flex-wrap:wrap;gap:6px}
+.check li{font-size:12.5px;background:var(--surface-2);border-radius:999px;padding:3px 10px;color:var(--ink-2)}
+.attest{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin-bottom:8px}
+.attest input{margin-top:3px;flex:none}
+.mailbox{border:1.5px solid var(--accent);border-radius:12px;padding:14px 16px;background:var(--accent-soft);margin:6px 0 12px}
+.mailbox p{margin:0 0 8px;font-size:14px}
+.mailbox .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.mailmeta{font-size:12.5px;color:var(--ink-2);margin:8px 0 6px;overflow-wrap:anywhere}
+.mailtext{width:100%;min-height:150px;font:12.5px/1.45 ui-monospace,Consolas,monospace;background:var(--surface);color:var(--ink)}
+.okbox{text-align:center;padding:12px 4px 4px}
+.okbox .big{font-size:40px;color:var(--ok)}
+.okbox .num{display:inline-block;font-weight:700;font-size:20px;color:var(--accent);background:var(--accent-soft);padding:6px 14px;border-radius:8px;margin:6px 0 10px}
+.fiche{border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;background:var(--surface)}
+.fiche-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.fiche-h b{font-size:14.5px}
+.pill.s-new{background:var(--accent-soft);color:var(--accent)}
+.pill.s-run{background:var(--g2s);color:var(--g2)}
+.pill.s-ok{background:var(--ok-soft);color:var(--ok)}
+.meta{font-size:12.5px;color:var(--muted);margin-top:3px}
+.retour{margin-top:8px;font-size:13.5px;border-left:3px solid var(--ok);padding:4px 10px;background:var(--ok-soft);border-radius:0 6px 6px 0}
+.relance{margin-top:8px;font-size:13px;border-left:3px solid var(--warn);padding:4px 10px;background:var(--warn-soft);border-radius:0 6px 6px 0}
+.foot{font-size:12px;color:var(--muted);text-align:center;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="flag" aria-hidden="true"></div>
+      <div>
+        <h1>Signaler une difficulté sur un marché mutualisé</h1>
+        <div class="sub" id="sub">environ 2 minutes</div>
+      </div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-new" aria-selected="true" type="button">Nouveau signalement</button>
+      <button class="tab" role="tab" id="tab-list" aria-selected="false" type="button">Mes signalements<span class="count" id="nb">0</span></button>
+    </div>
+  </header>
+
+  <div id="banner"></div>
+
+  <!-- ============ FORMULAIRE ============ -->
+  <section id="view-new" class="card">
+    <div class="loading" id="loading">Chargement des listes depuis Grist…</div>
+    <div id="form" class="hidden">
+    <div class="steps" aria-hidden="true">
+      <div class="step" data-s="1"><i></i>1 · Quoi ?</div>
+      <div class="step" data-s="2"><i></i>2 · Détails</div>
+      <div class="step" data-s="3"><i></i>3 · Suite attendue</div>
+    </div>
+
+    <!-- Étape 1 -->
+    <div class="pane" data-pane="1">
+      <h2>Que se passe-t-il ?</h2>
+      <p class="hint">Trois choix suffisent pour orienter votre signalement.</p>
+
+      <div class="field" id="f-nature">
+        <span class="lbl">Nature du problème<span class="req">*</span></span>
+        <div class="tiles two" id="natures"></div>
+        <div class="err-msg">Choisissez la nature du problème.</div>
+      </div>
+
+      <div class="field" id="f-marche">
+        <span class="lbl" id="marche-lbl">Marché concerné<span class="req">*</span></span>
+        <div id="marche-box"></div>
+        <div class="help" id="marche-help"></div>
+        <div class="err-msg">Indiquez le marché concerné.</div>
+      </div>
+
+      <div class="field" id="f-typo">
+        <span class="lbl">Type de difficulté<span class="req">*</span></span>
+        <div id="typos"></div>
+        <div class="err-msg">Choisissez un type de difficulté.</div>
+      </div>
+    </div>
+
+    <!-- Étape 2 -->
+    <div class="pane hidden" data-pane="2">
+      <h2>Précisez en quelques mots</h2>
+      <p class="hint" id="typo-aide"></p>
+
+      <div class="field" id="f-grav">
+        <span class="lbl">Gravité pour votre service<span class="req">*</span></span>
+        <div class="tiles four" id="gravs"></div>
+        <div class="err-msg">Indiquez la gravité.</div>
+      </div>
+
+      <div class="grid2">
+        <div class="field" id="f-date">
+          <label class="lbl" for="date-constat">Date de constat<span class="req">*</span></label>
+          <input type="date" id="date-constat">
+          <div class="err-msg">Date requise (pas dans le futur).</div>
+        </div>
+        <div class="field">
+          <span class="lbl">Fréquence</span>
+          <div class="chips" id="recs"></div>
+        </div>
+      </div>
+
+      <div id="cond"></div>
+
+      <div class="field" id="f-desc">
+        <label class="lbl" for="desc">Description<span class="req">*</span></label>
+        <textarea id="desc" maxlength="1500" placeholder="Les faits : quoi, où, quand. Ex. : « Intervention prévue le 2/10 pour panne de chaudière, titulaire non venu, relancé 2 fois, toujours pas de date. »"></textarea>
+        <div class="counter"><span id="desc-n">0</span> / 1500</div>
+        <div class="help">N'indiquez pas de données personnelles sur des tiers (personnes détenues, justiciables, salariés du titulaire) : les faits suffisent.</div>
+        <div class="err-msg">Quelques mots suffisent (20 caractères minimum).</div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label class="lbl" for="bc">N° bon de commande / EJ<span class="opt">facultatif</span></label>
+          <input type="text" id="bc" placeholder="ex. 1300123456">
+        </div>
+        <div class="field">
+          <label class="lbl" for="montant">Montant en jeu (€ TTC)<span class="opt">facultatif</span></label>
+          <input type="number" id="montant" min="0" step="0.01" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+
+    <!-- Étape 3 -->
+    <div class="pane hidden" data-pane="3">
+      <h2>Qu'attendez-vous du pôle achats ?</h2>
+      <p class="hint">Cela nous permet de vous répondre de la bonne façon.</p>
+
+      <div class="field" id="f-attendu">
+        <span class="lbl">Votre attente<span class="req">*</span></span>
+        <div class="tiles two" id="attendus"></div>
+        <div class="err-msg">Choisissez votre attente.</div>
+      </div>
+
+      <div class="field">
+        <span class="lbl">Démarches déjà faites auprès du titulaire</span>
+        <div class="chips" id="demarches"></div>
+      </div>
+
+      <div class="grid2">
+        <div class="field" id="f-service">
+          <label class="lbl" for="service">Votre service<span class="req">*</span></label>
+          <select id="service"></select>
+          <div class="err-msg">Indiquez votre service.</div>
+        </div>
+        <div class="field" id="f-contact">
+          <label class="lbl" for="contact">Contact sur site<span class="req">*</span></label>
+          <input type="text" id="contact" placeholder="Nom · téléphone">
+          <div class="err-msg">Indiquez un contact.</div>
+        </div>
+      </div>
+
+      <div class="field" id="f-pj">
+        <span class="lbl">Pièces justificatives<span class="opt" id="pj-req">à envoyer par courriel</span></span>
+        <p class="help" style="margin:0 0 8px">Les pièces ne sont pas déposées ici : vous les joindrez au <b>courriel de transmission</b> préparé à l'étape suivante.</p>
+        <ul class="check" id="pj-check" aria-label="Pièces utiles"></ul>
+        <div class="tiles two" id="pj-tiles"></div>
+        <div class="err-msg" id="pj-err">Indiquez si vous joindrez des pièces au courriel.</div>
+      </div>
+
+      <div class="field" id="f-att">
+        <label class="attest"><input type="checkbox" id="attest"> <span>J'atteste que les faits décrits sont exacts.</span></label>
+        <label class="attest hidden" id="engage-row"><input type="checkbox" id="engage"> <span>Je m'engage à envoyer le courriel de transmission <b>avec les pièces</b> dès l'enregistrement.</span></label>
+        <div class="err-msg" id="att-err">Cochez l'attestation pour envoyer.</div>
+      </div>
+
+      <dl class="recap" id="recap"></dl>
+    </div>
+
+    <!-- Confirmation -->
+    <div class="pane hidden" data-pane="ok">
+      <div class="okbox">
+        <div class="big" aria-hidden="true">✓</div>
+        <h2>Signalement enregistré</h2>
+        <div class="num" id="done-num"></div>
+        <p class="hint" id="done-msg"></p>
+      </div>
+      <div id="done-mail"></div>
+      <div style="text-align:center;margin-top:10px"><button class="btn" id="again" type="button">Faire un autre signalement</button></div>
+    </div>
+
+    <div class="actions" id="nav">
+      <button class="btn" id="prev" type="button">Retour</button>
+      <button class="btn primary" id="next" type="button">Continuer</button>
+    </div>
+    </div>
+  </section>
+
+  <!-- ============ LISTE ============ -->
+  <section id="view-list" class="hidden" aria-live="polite">
+    <div id="list-note"></div>
+    <div id="fiches"></div>
+  </section>
+
+  <div class="foot">Brouillon conservé automatiquement sur ce poste · Données traitées par le pôle achats</div>
+</div>
+
+<script>
+/* --- commun.js (inclus) --- */
+/* =====================================================================
+ *  commun.js — utilitaires partagés par les widgets Grist
+ *  « Signalements – marchés mutualisés » (pôle achats DPFAC – DIR-SG Grand Ouest)
+ *
+ *  Aucune donnée ici : uniquement du code. Les données vivent dans le document Grist.
+ * ===================================================================== */
+(function (global) {
+  "use strict";
+
+  /* ------------------------------------------------------------------ *
+   *  Paramétrage technique                                              *
+   * ------------------------------------------------------------------ */
+  // Instances Grist essayées pour charger l'API des widgets, après l'origine de la page hôte.
+  const ORIGINES_GRIST = ["https://grist.numerique.gouv.fr", "https://docs.getgrist.com"];
+  const TABLES = { params: "Parametres", services: "Services", users: "Utilisateurs", marches: "Marches",
+                   typos: "Typologies", fiches: "Fiches" };
+
+  /* ------------------------------------------------------------------ *
+   *  Utilitaires                                                        *
+   * ------------------------------------------------------------------ */
+  const $ = (s, el) => (el || document).querySelector(s);
+  const $$ = (s, el) => [...(el || document).querySelectorAll(s)];
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // fetchTable renvoie des colonnes {id:[…], Col:[…]} → tableau d'objets
+  const toRows = t => {
+    if (!t || !t.id) return [];
+    const keys = Object.keys(t).filter(k => !k.startsWith("gristHelper_"));
+    return t.id.map((_, i) => { const o = {}; keys.forEach(k => o[k] = t[k][i]); return o; });
+  };
+  // Référence : nombre, ["R", id], ou texte (colonne mal typée)
+  const refId = v => Array.isArray(v) ? v[1] : v;
+  // Dates Grist : secondes depuis 1970 (UTC), ou chaîne ISO
+  const toDate = v => {
+    if (v == null || v === "" || v === 0) return null;
+    const d = typeof v === "number" ? new Date(v * 1000) : new Date(v);
+    return isNaN(d) ? null : d;
+  };
+  const fmtDate = v => { const d = toDate(v); return d ? d.toLocaleDateString("fr-FR", { timeZone: "UTC" }) : ""; };
+  const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+  const isoToEpoch = iso => { const [y, m, d] = String(iso).split("-").map(Number); return Date.UTC(y, m - 1, d) / 1000; };
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error("délai dépassé")), ms))]);
+  // Texte sans accents, minuscules, ponctuation remplacée par des espaces
+  const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ").trim();
+  const listVal = v => Array.isArray(v) ? v.filter((x, i) => !(i === 0 && x === "L")) : (v ? String(v).split(/\s*,\s*/) : []);
+  // Jours ouvrés (lun.-ven.) après a jusqu'à b inclus, en UTC — même règle que les formules Grist
+  function joursOuvres(a, b) {
+    if (!a || !b) return null;
+    let n = 0; const d = new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate()));
+    const e = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
+    while (d.getTime() < e) { d.setUTCDate(d.getUTCDate() + 1); const w = d.getUTCDay(); if (w !== 0 && w !== 6) n++; }
+    return n;
+  }
+  // Stockage local protégé (la page doit fonctionner sans)
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* idem */ } }
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Connexion Grist                                                    *
+   * ------------------------------------------------------------------ */
+  function loadScript(src) {
+    return new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = src; s.onload = res; s.onerror = () => rej(new Error("chargement impossible : " + src));
+      document.head.appendChild(s);
+    });
+  }
+  /** Renvoie "grist" ou lève une erreur { code: "horsgrist" | "api" | "acces" }. */
+  async function connect() {
+    if (window === window.parent) throw Object.assign(new Error("hors Grist"), { code: "horsgrist" });
+    const origines = [];
+    try { if (document.referrer) origines.push(new URL(document.referrer).origin); } catch (e) { /* referrer absent */ }
+    ORIGINES_GRIST.forEach(o => { if (!origines.includes(o)) origines.push(o); });
+    for (const o of origines) {
+      try { await loadScript(o + "/grist-plugin-api.js"); if (window.grist) break; } catch (e) { /* origine suivante */ }
+    }
+    if (!window.grist) throw Object.assign(new Error("API Grist introuvable"), { code: "api" });
+    grist.ready({ requiredAccess: "full" });
+    try { await withTimeout(grist.docApi.listTables(), 5000); }
+    catch (e) { throw Object.assign(new Error("accès refusé"), { code: "acces" }); }
+    return "grist";
+  }
+
+  async function fetchRows(table) {
+    try { return toRows(await grist.docApi.fetchTable(table)); } catch (e) { return null; }
+  }
+
+  /** Métadonnées : types, choix et options des colonnes, par table. */
+  async function loadMeta() {
+    const T = toRows(await grist.docApi.fetchTable("_grist_Tables"));
+    const C = toRows(await grist.docApi.fetchTable("_grist_Tables_column"));
+    const byId = {}; T.forEach(t => byId[t.id] = t.tableId);
+    const meta = {};
+    C.forEach(c => {
+      const t = byId[c.parentId]; if (!t) return;
+      let o = {}; try { o = c.widgetOptions ? JSON.parse(c.widgetOptions) : {}; } catch (e) { o = {}; }
+      (meta[t] = meta[t] || {})[c.colId] = { type: c.type, choices: o.choices || [], options: o, label: c.label, ref: c.id };
+    });
+    return meta;
+  }
+  const colType = (meta, t, c) => meta && meta[t] && meta[t][c] ? meta[t][c].type : undefined;
+  /** Choix d'une colonne Choice / ChoiceList, lus dans Grist. */
+  const choices = (meta, t, c) => (meta && meta[t] && meta[t][c] && meta[t][c].choices) || [];
+
+  /** Encode une valeur selon le type réel de la colonne (document éventuellement mal typé).
+   *  Renvoie undefined si la colonne n'existe pas (on ne l'écrit pas), null si valeur vide. */
+  function encode(meta, table, col, val, kind) {
+    const known = meta && meta[table];
+    const t = colType(meta, table, col);
+    if (known && t === undefined) return undefined;
+    if (val === "" || val == null || (Array.isArray(val) && !val.length)) return null;
+    switch (kind) {
+      case "ref": return t && t.startsWith("Ref:") ? val.id : val.label;
+      case "date": return (!t || t === "Date" || t.startsWith("DateTime")) ? isoToEpoch(val) : val;
+      case "list": return (!t || t === "ChoiceList") ? ["L"].concat(val) : val.join(", ");
+      case "num": {
+        const n = Number(String(val).replace(/\s/g, "").replace(",", ".")); if (isNaN(n)) return null;
+        return (t === "Text" || t === "Any") ? String(n) : n;
+      }
+      case "bool": return (t === "Text") ? (val ? "Oui" : "Non") : !!val;
+      default: return val;
+    }
+  }
+
+  /** Paramètres (table Parametres : Cle → Valeur). */
+  async function loadParams() {
+    const rows = await fetchRows(TABLES.params) || [];
+    const p = {}; rows.forEach(r => { if (r.Cle) p[String(r.Cle).trim()] = r.Valeur == null ? "" : String(r.Valeur).trim(); });
+    return p;
+  }
+
+  /** Nom du siège d'un service (Siege vide → le service est lui-même un siège). */
+  function siegeOf(services) {
+    const byId = new Map(services.map(s => [s.id, s]));
+    return s => {
+      if (!s) return "Non rattaché";
+      const v = refId(s.Siege);
+      if (v == null || v === "" || v === 0) return s.Nom;
+      if (typeof v === "number") { const h = byId.get(v); return h ? h.Nom : s.Nom; }
+      return String(v);
+    };
+  }
+
+  /** Écran bloquant (pas de repli sur des données codées : tout vient de Grist). */
+  function fatal(el, titre, html) {
+    el.innerHTML = `<div class="fatal" role="alert"><div class="fatal-ico" aria-hidden="true">!</div>
+      <h2>${esc(titre)}</h2><div>${html}</div></div>`;
+  }
+  function messageConnexion(err) {
+    if (err && err.code === "horsgrist") return ["Ouvrez ce widget dans Grist",
+      "Cette page est un widget personnalisé : elle s'affiche dans le document Grist du pôle achats (<b>grist.numerique.gouv.fr</b>). Elle ne contient aucune donnée par elle-même."];
+    if (err && err.code === "acces") return ["Accès au document à autoriser",
+      "Le widget n'a pas accès au document. Dans le panneau de droite du widget, réglez le niveau d'accès sur <b>Accès complet au document</b>."];
+    return ["Connexion à Grist impossible", "L'API des widgets Grist n'a pas pu être chargée. Rechargez la page ; si le problème persiste, contactez le pôle achats."];
+  }
+
+  global.SIG = { TABLES, $, $$, esc, toRows, refId, toDate, fmtDate, todayISO, isoToEpoch, withTimeout, norm, listVal,
+    joursOuvres, store, connect, fetchRows, loadMeta, colType, choices, encode, loadParams, siegeOf, fatal, messageConnexion };
+})(window);
+
+</script>
+<script>
+(function(){
+"use strict";
+const { $, $$, esc, refId, toDate, fmtDate, todayISO, norm, listVal, store, connect, fetchRows, loadMeta, choices,
+        encode, loadParams, siegeOf, fatal, messageConnexion, TABLES } = SIG;
+
+/* ------------------------------------------------------------------ *
+ *  Paramétrage : textes d'interface uniquement (les valeurs viennent des listes de choix Grist)
+ * ------------------------------------------------------------------ */
+const DRAFT_KEY = "signalement-marches-brouillon-v2";
+const NATURES_UI = {
+  "Exécution":  { ico: "⚠️", t: "Le titulaire n'exécute pas correctement", d: "Retard, non-conformité, prix, documents, absence de réponse…" },
+  "Adéquation": { ico: "🧩", t: "Le marché ne répond pas à mon besoin", d: "Besoin non couvert, prix peu compétitifs, rupture, commande compliquée…" } };
+const GRAVITES_UI = { 1: "Gêne, sans effet sur le service rendu", 2: "Fonctionnement dégradé, contournement possible",
+  3: "Interruption partielle ou surcoût important", 4: "Arrêt d'activité, sécurité, enjeu juridique" };
+const ATTENDUS_UI = {
+  "Information": { t: "Pour information", d: "Alimenter le suivi et les statistiques" },
+  "Conseil": { t: "Un conseil", d: "Savoir comment réagir, quel courrier envoyer" },
+  "Intervention": { t: "Une intervention du pôle", d: "Que l'acheteur saisisse le titulaire" },
+  "Pénalités": { t: "Une aide aux pénalités", d: "Calcul, mise en demeure, réfaction" },
+  "Revue de contrat": { t: "Faire évoluer le marché", d: "À porter en revue de contrat / prochain marché" } };
+const PIECES_UI = {
+  "Oui, jointes au courriel": { t: "J'ai des pièces", d: "Je les joins au courriel de transmission" },
+  "Aucune pièce disponible": { t: "Je n'ai aucune pièce", d: "La fiche sera déclarative" } };
+const ATTENTES_AVEC_PIECES = ["Intervention", "Pénalités"];
+// Valeurs de repli si une colonne n'est pas de type Choix dans le document
+const REPLI = { Recurrence: ["Première fois", "Déjà constaté", "Récurrent"],
+  Demarches: ["Aucune", "Relance téléphonique", "Relance écrite", "Réunion avec le titulaire", "Mise en demeure envoyée", "Pénalités / réfaction appliquées"],
+  Contournement: ["Aucune", "Achat hors marché", "Besoin reporté", "Autre fournisseur du marché", "Autre"],
+  Gravite: ["1 · Mineure", "2 · Significative", "3 · Majeure", "4 · Critique"] };
+
+/* ------------------------------------------------------------------ *
+ *  État                                                               *
+ * ------------------------------------------------------------------ */
+let META = null, P = {}, L = {};      // métadonnées, paramètres, listes de valeurs
+let REF = { services: [], marches: [], typos: [], fiches: [], me: null, monEmail: null };
+let step = 1;
+const blank = () => ({ nature: "", marche: null, libre: false, mObjet: "", mRef: "", mTit: "", typo: null, grav: 0,
+  date: todayISO(), rec: "", desc: "", bc: "", montant: "", attendu: "", demarches: [], service: null, contact: "",
+  datePrevue: "", dateReelle: "", nonRealise: false, prixAttendu: "", prixFacture: "", quantite: "", document: "",
+  contournement: "", pieces: "", attest: false, engage: false });
+let S = blank();
+const val = (table, col) => { const c = choices(META, table, col); return c.length ? c : (REPLI[col] || []); };
+
+/* ------------------------------------------------------------------ *
+ *  Connexion Grist et chargement                                      *
+ * ------------------------------------------------------------------ */
+async function loadData() {
+  META = await SIG.loadMeta();
+  const manque = ["services", "marches", "typos", "fiches"].map(k => TABLES[k]).filter(t => !META[t]);
+  if (manque.length) throw Object.assign(new Error(), { install: manque });
+  P = await loadParams();
+  const [sv, us, mc, ty, fi] = await Promise.all([fetchRows(TABLES.services), fetchRows(TABLES.users),
+    fetchRows(TABLES.marches), fetchRows(TABLES.typos), fetchRows(TABLES.fiches)]);
+  REF.services = (sv || []).filter(r => r.Nom && r.Actif !== false).sort((a, b) => String(a.Nom).localeCompare(b.Nom, "fr"));
+  REF.marches = (mc || []).filter(r => r.Intitule && r.Actif !== false && !refId(r.Fusionne_dans));
+  REF.allMarches = mc || [];
+  REF.typos = (ty || []).filter(t => t.Libelle && t.Actif !== false).sort((a, b) => (a.Ordre || 0) - (b.Ordre || 0) || String(a.Code).localeCompare(b.Code));
+  REF.allTypos = ty || [];
+  REF.fiches = (fi || []).sort((a, b) => b.id - a.id);
+  // Profil : avec les règles d'accès, un agent ne voit que sa ligne de Utilisateurs → pré-remplissage
+  REF.me = null; REF.monEmail = null;
+  if (us && us.length === 1) {
+    const u = us[0];
+    REF.me = { Service: refId(u.Service) || null, Contact: [u.Nom_prenom, u.Telephone].filter(Boolean).join(" · ") };
+    REF.monEmail = u.Email ? String(u.Email).toLowerCase() : null;
+  }
+  L = { natures: val("Fiches", "Nature").filter(v => v !== "Les deux"), gravites: val("Fiches", "Gravite"),
+        recs: val("Fiches", "Recurrence"), attendus: val("Fiches", "Attendu"), demarches: val("Fiches", "Demarches"),
+        contournements: val("Fiches", "Contournement"), pieces: val("Fiches", "Pieces_annoncees") };
+  if (!L.natures.length) L.natures = Object.keys(NATURES_UI);
+  if (!L.attendus.length) L.attendus = Object.keys(ATTENDUS_UI);
+  if (!L.pieces.length) L.pieces = Object.keys(PIECES_UI);
+}
+async function refreshFiches() { const f = await fetchRows(TABLES.fiches); if (f) REF.fiches = f.sort((a, b) => b.id - a.id); renderList(); }
+
+/* ------------------------------------------------------------------ *
+ *  Rendu du formulaire                                                *
+ * ------------------------------------------------------------------ */
+const tile = (attrs, inner, cls) => `<button type="button" class="tile ${cls || ""}" ${attrs}>${inner}</button>`;
+const typo = () => REF.typos.find(t => t.id === S.typo) || null;
+const gnum = g => parseInt(String(g), 10) || 0;
+
+function renderNatures() {
+  $("#natures").innerHTML = L.natures.map(v => { const u = NATURES_UI[v] || { ico: "•", t: v, d: "" };
+    return tile(`data-v="${esc(v)}" aria-pressed="${S.nature === v}"`, `<span class="ico" aria-hidden="true">${u.ico}</span><b>${esc(u.t)}</b><span>${esc(u.d)}</span>`); }).join("");
+  $$("#natures .tile").forEach(b => b.onclick = () => {
+    if (S.nature !== b.dataset.v) { S.nature = b.dataset.v; const t = typo(); if (t && t.Nature !== S.nature && t.Nature !== "Les deux") S.typo = null; }
+    renderNatures(); renderTypos(); save(); clearErr("f-nature");
+  });
+}
+
+/* --- Marché : recherche dans le référentiel, ou saisie libre --- */
+const mLabel = m => m ? m.Intitule + (m.Reference ? " – " + m.Reference : "") : "";
+function renderMarche() {
+  const box = $("#marche-box"), help = $("#marche-help"), aucun = !REF.marches.length;
+  if (S.marche) {
+    const m = REF.marches.find(x => x.id === S.marche);
+    if (!m) { S.marche = null; return renderMarche(); }
+    box.innerHTML = `<div class="picked"><div>${m.Support ? `<span class="badge">${esc(m.Support)}</span>` : ""}<b>${esc(m.Intitule)}</b><small>${esc([m.Reference, m.Titulaire && "Titulaire : " + m.Titulaire].filter(Boolean).join(" · "))}</small></div><button type="button" class="link" id="marche-chg">Changer</button></div>`;
+    $("#marche-chg").onclick = () => { S.marche = null; renderMarche(); save(); setTimeout(() => $("#marche-q") && $("#marche-q").focus(), 0); };
+    help.innerHTML = ""; return;
+  }
+  if (S.libre || aucun) {
+    box.innerHTML = `<div class="grid3">
+      <div><label class="sr" for="m-objet">Objet du marché</label><input type="text" id="m-objet" placeholder="Objet du marché (ex. nettoyage des locaux)" value="${esc(S.mObjet)}"></div>
+      <div><label class="sr" for="m-ref">N° ou référence</label><input type="text" id="m-ref" placeholder="N° ou référence" value="${esc(S.mRef)}"></div>
+      <div><label class="sr" for="m-tit">Titulaire</label><input type="text" id="m-tit" placeholder="Titulaire" value="${esc(S.mTit)}"></div></div>`;
+    $("#m-objet").oninput = e => { S.mObjet = e.target.value; save(); if (S.mObjet.trim()) clearErr("f-marche"); };
+    $("#m-ref").oninput = e => { S.mRef = e.target.value; save(); };
+    $("#m-tit").oninput = e => { S.mTit = e.target.value; save(); };
+    help.innerHTML = aucun
+      ? "Saisissez le marché tel que vous le connaissez : le pôle achats le rattachera à son référentiel. Référence et titulaire sont facultatifs."
+      : `Référence et titulaire facultatifs. <button type="button" class="link" id="marche-search">Rechercher plutôt dans la liste</button>`;
+    const s = $("#marche-search"); if (s) s.onclick = () => { S.libre = false; renderMarche(); save(); setTimeout(() => $("#marche-q").focus(), 0); };
+    return;
+  }
+  box.innerHTML = `<div class="combo"><input type="search" id="marche-q" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="marche-list" aria-autocomplete="list" aria-labelledby="marche-lbl" placeholder="Rechercher : nettoyage, électricité, titulaire…"><div class="list" id="marche-list" role="listbox"></div></div>`;
+  help.innerHTML = `Tapez un mot (objet, titulaire, n° de marché). Introuvable ? <button type="button" class="link" id="marche-free">Saisir librement</button>`;
+  $("#marche-free").onclick = goFree;
+  const q = $("#marche-q"), list = $("#marche-list"); let act = -1, res = [];
+  const draw = () => {
+    const words = norm(q.value).split(" ").filter(Boolean);
+    res = REF.marches.filter(m => { const h = norm([m.Intitule, m.Reference, m.Titulaire, m.Support, m.Segment, m.Alias].join(" ")); return words.every(w => h.includes(w)); }).slice(0, 30);
+    list.innerHTML = res.length ? res.map((m, i) => `<div class="opt-row ${i === act ? "act" : ""}" role="option" id="opt-${i}" aria-selected="${i === act}" data-i="${i}">${m.Support ? `<span class="badge">${esc(m.Support)}</span>` : ""}${esc(m.Intitule)}<small>${esc([m.Reference, m.Titulaire].filter(Boolean).join(" · "))}</small></div>`).join("")
+      : `<div class="opt-row" style="cursor:default">Aucun marché trouvé. <button type="button" class="link" data-free>Saisir librement</button></div>`;
+    list.classList.add("open"); q.setAttribute("aria-expanded", "true");
+    if (act >= 0) q.setAttribute("aria-activedescendant", "opt-" + act); else q.removeAttribute("aria-activedescendant");
+    $$("[data-i]", list).forEach(r => r.onmousedown = e => { e.preventDefault(); pick(res[+r.dataset.i]); });
+    const f = $("[data-free]", list); if (f) f.onmousedown = e => { e.preventDefault(); goFree(); };
+    const a = $(".act", list); if (a) a.scrollIntoView({ block: "nearest" });
+  };
+  const pick = m => { S.marche = m.id; S.libre = false; renderMarche(); save(); clearErr("f-marche"); };
+  q.onfocus = draw; q.oninput = () => { act = -1; draw(); };
+  q.onblur = () => setTimeout(() => { list.classList.remove("open"); q.setAttribute("aria-expanded", "false"); }, 120);
+  q.onkeydown = e => {
+    if (e.key === "ArrowDown") { act = Math.min(act + 1, res.length - 1); draw(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { act = Math.max(act - 1, 0); draw(); e.preventDefault(); }
+    else if (e.key === "Enter" && res[act]) { pick(res[act]); e.preventDefault(); }
+    else if (e.key === "Escape") { list.classList.remove("open"); q.setAttribute("aria-expanded", "false"); }
+  };
+}
+function goFree() { S.marche = null; S.libre = true; renderMarche(); save(); setTimeout(() => $("#m-objet") && $("#m-objet").focus(), 0); }
+
+function renderTypos() {
+  const el = $("#typos");
+  if (!REF.typos.length) { el.innerHTML = `<p class="help">La liste des types de difficulté est vide : le pôle achats doit compléter la table <b>Typologies</b>.</p>`; return; }
+  if (!S.nature) { el.innerHTML = `<p class="help">Choisissez d'abord la nature du problème.</p>`; return; }
+  const list = REF.typos.filter(t => !t.Nature || t.Nature === S.nature || t.Nature === "Les deux");
+  const fams = [...new Set(list.map(t => t.Famille || "Autre"))];
+  el.innerHTML = fams.map(f => `<div class="fam">${esc(f)}</div><div class="chips">${
+    list.filter(t => (t.Famille || "Autre") === f).map(t => `<button type="button" class="chip" data-id="${t.id}" aria-pressed="${S.typo === t.id}">${esc(t.Libelle)}</button>`).join("")}</div>`).join("");
+  $$(".chip", el).forEach(b => b.onclick = () => { S.typo = +b.dataset.id; renderTypos(); save(); clearErr("f-typo"); });
+}
+
+function renderGrav() {
+  $("#gravs").innerHTML = L.gravites.map(v => { const n = gnum(v);
+    return tile(`data-g="${n}" data-v="${esc(v)}" aria-pressed="${S.grav === n}"`, `<b>${esc(v)}</b><span>${esc(GRAVITES_UI[n] || "")}</span>`, "grav"); }).join("");
+  $$("#gravs .tile").forEach(b => b.onclick = () => { S.grav = +b.dataset.g; renderGrav(); save(); clearErr("f-grav"); });
+}
+function renderChips(sel, items, isMulti, key, exclusive) {
+  const el = $(sel); if (!el) return;
+  el.innerHTML = items.map(v => `<button type="button" class="chip" data-v="${esc(v)}" aria-pressed="${isMulti ? S[key].includes(v) : S[key] === v}">${esc(v)}</button>`).join("");
+  $$(".chip", el).forEach(b => b.onclick = () => {
+    const v = b.dataset.v;
+    if (isMulti) {
+      if (v === exclusive) S[key] = S[key].includes(v) ? [] : [v];
+      else { S[key] = S[key].filter(x => x !== exclusive); S[key] = S[key].includes(v) ? S[key].filter(x => x !== v) : S[key].concat(v); }
+    } else S[key] = (S[key] === v && key !== "rec") ? "" : v;
+    renderChips(sel, items, isMulti, key, exclusive); save();
+  });
+}
+
+/* --- Blocs conditionnels selon la typologie --- */
+function retardTxt() {
+  const a = S.datePrevue, b = S.nonRealise ? todayISO() : S.dateReelle; if (!a || !b) return "";
+  const n = Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+  return n > 0 ? `Retard : ${n} jour${n > 1 ? "s" : ""} calendaire${n > 1 ? "s" : ""}${S.nonRealise ? " à ce jour" : ""}` : "Pas de retard calculé";
+}
+function ecartTxt() {
+  const a = +String(S.prixAttendu).replace(",", "."), b = +String(S.prixFacture).replace(",", "."), q = +S.quantite || 1;
+  if (S.prixAttendu === "" || S.prixFacture === "" || !(a > 0)) return "";
+  const d = (b - a) * q, p = (b - a) / a * 100;
+  return `Écart : ${d.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} (${p > 0 ? "+" : ""}${p.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %)`;
+}
+const prixLabels = () => (S.nature === "Adéquation") ? ["Prix du marché (€ unitaire)", "Prix trouvé ailleurs (€ unitaire)"] : ["Prix attendu – BPU (€ unitaire)", "Prix facturé (€ unitaire)"];
+function renderCond() {
+  const t = typo(), bloc = t ? (t.Bloc || "") : "", el = $("#cond");
+  $("#typo-aide").innerHTML = t ? `<b>${esc(t.Libelle)}</b>${t.Aide ? " — " + esc(t.Aide) : ""}` : "";
+  if (bloc === "delai") {
+    el.innerHTML = `<div class="cond"><div class="grid2">
+      <div><label class="lbl" for="d-prev">Date prévue / demandée</label><input type="date" id="d-prev" value="${esc(S.datePrevue)}"></div>
+      <div><label class="lbl" for="d-reel">Date de réalisation</label><input type="date" id="d-reel" value="${esc(S.dateReelle)}" ${S.nonRealise ? "disabled" : ""}>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="d-non" ${S.nonRealise ? "checked" : ""}> Pas encore réalisé</label></div></div>
+      <div class="calc" id="d-calc" aria-live="polite"></div></div>`;
+    const upd = () => $("#d-calc").textContent = retardTxt();
+    $("#d-prev").oninput = e => { S.datePrevue = e.target.value; upd(); save(); };
+    $("#d-reel").oninput = e => { S.dateReelle = e.target.value; upd(); save(); };
+    $("#d-non").onchange = e => { S.nonRealise = e.target.checked; $("#d-reel").disabled = S.nonRealise; upd(); save(); };
+    upd();
+  } else if (bloc === "prix") {
+    const lab = prixLabels();
+    el.innerHTML = `<div class="cond"><div class="grid2">
+      <div><label class="lbl" for="p-att">${esc(lab[0])}</label><input type="number" step="0.01" min="0" inputmode="decimal" id="p-att" value="${esc(S.prixAttendu)}"></div>
+      <div><label class="lbl" for="p-fac">${esc(lab[1])}</label><input type="number" step="0.01" min="0" inputmode="decimal" id="p-fac" value="${esc(S.prixFacture)}"></div></div>
+      <div style="margin-top:10px"><label class="lbl" for="p-q">Quantité concernée<span class="opt">facultatif</span></label><input type="number" min="0" id="p-q" value="${esc(S.quantite)}" style="max-width:200px"></div>
+      <div class="calc" id="p-calc" aria-live="polite"></div></div>`;
+    const upd = () => $("#p-calc").textContent = ecartTxt();
+    [["#p-att", "prixAttendu"], ["#p-fac", "prixFacture"], ["#p-q", "quantite"]].forEach(([s, k]) => $(s).oninput = e => { S[k] = e.target.value; upd(); save(); });
+    upd();
+  } else if (bloc === "doc") {
+    el.innerHTML = `<div class="cond"><div class="grid2">
+      <div><label class="lbl" for="doc">Document attendu</label><input type="text" id="doc" value="${esc(S.document)}" placeholder="ex. rapport de visite, attestation URSSAF"></div>
+      <div><label class="lbl" for="d-prev">Remise prévue le</label><input type="date" id="d-prev" value="${esc(S.datePrevue)}"></div></div></div>`;
+    $("#doc").oninput = e => { S.document = e.target.value; save(); };
+    $("#d-prev").oninput = e => { S.datePrevue = e.target.value; save(); };
+  } else if (bloc === "besoin") {
+    el.innerHTML = `<div class="cond"><span class="lbl">Comment avez-vous fait ?</span><div class="chips" id="cont"></div></div>`;
+    renderChips("#cont", L.contournements, false, "contournement");
+  } else el.innerHTML = "";
+}
+
+function renderAttendus() {
+  $("#attendus").innerHTML = L.attendus.map(v => { const u = ATTENDUS_UI[v] || { t: v, d: "" };
+    return tile(`data-v="${esc(v)}" aria-pressed="${S.attendu === v}"`, `<b>${esc(u.t)}</b><span>${esc(u.d)}</span>`); }).join("");
+  $$("#attendus .tile").forEach(b => b.onclick = () => { S.attendu = b.dataset.v; renderAttendus(); renderPieces(); save(); clearErr("f-attendu"); });
+}
+function renderService() {
+  const sel = $("#service"), sg = siegeOf(REF.services);
+  const groups = [...new Set(REF.services.map(sg))].sort((a, b) => a.localeCompare(b, "fr"));
+  sel.innerHTML = `<option value="">— Choisir —</option>` + groups.map(g => `<optgroup label="${esc(g)}">` +
+    REF.services.filter(s => sg(s) === g).sort((a, b) => (b.Nom === g) - (a.Nom === g) || String(a.Nom).localeCompare(b.Nom, "fr"))
+      .map(s => `<option value="${s.id}" ${S.service === s.id ? "selected" : ""}>${esc(s.Nom)}${s.Nom === g ? " (siège)" : ""}</option>`).join("") + `</optgroup>`).join("");
+  sel.onchange = () => { S.service = sel.value ? +sel.value : null; save(); clearErr("f-service"); };
+  $("#contact").value = S.contact;
+  $("#contact").oninput = e => { S.contact = e.target.value; save(); if (S.contact.trim()) clearErr("f-contact"); };
+}
+
+/* --- Pièces : liste indicative (table Typologies) et déclaration --- */
+const needPJ = () => ATTENTES_AVEC_PIECES.includes(S.attendu);
+const piecesDe = t => t && t.Pieces_attendues ? String(t.Pieces_attendues).split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
+const avecPieces = () => S.pieces && S.pieces === L.pieces[0];
+function renderPieces() {
+  const list = piecesDe(typo());
+  $("#pj-check").innerHTML = list.map(x => `<li>${esc(x)}</li>`).join("") || `<li>Échanges avec le titulaire</li><li>Bon de commande</li>`;
+  $("#pj-req").textContent = needPJ() ? "indispensables pour votre demande" : "à envoyer par courriel";
+  $("#pj-req").style.color = needPJ() ? "var(--g4)" : "";
+  $("#pj-tiles").innerHTML = L.pieces.map(v => { const u = PIECES_UI[v] || { t: v, d: "" };
+    return tile(`data-v="${esc(v)}" aria-pressed="${S.pieces === v}"`, `<b>${esc(u.t)}</b><span>${esc(u.d)}</span>`); }).join("");
+  $$("#pj-tiles .tile").forEach(b => b.onclick = () => { S.pieces = b.dataset.v; renderPieces(); save(); clearErr("f-pj"); });
+  $("#engage-row").classList.toggle("hidden", !avecPieces());
+  $("#pj-err").textContent = (needPJ() && S.pieces && !avecPieces())
+    ? "Pour une intervention auprès du titulaire ou une aide aux pénalités, des pièces sont nécessaires : joignez-les au courriel, ou choisissez une autre attente."
+    : "Indiquez si vous joindrez des pièces au courriel.";
+}
+function renderRecap() {
+  const m = REF.marches.find(x => x.id === S.marche), t = typo(), g = L.gravites.find(v => gnum(v) === S.grav);
+  const rows = [["Nature", (NATURES_UI[S.nature] || {}).t || S.nature],
+    ["Marché", m ? mLabel(m) : [S.mObjet, S.mRef, S.mTit].map(s => s.trim()).filter(Boolean).join(" · ")],
+    ["Difficulté", t && t.Libelle], ["Gravité", g], ["Constaté le", fmtDate(S.date) + (S.rec ? " · " + S.rec : "")]];
+  $("#recap").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || "—")}</dd>`).join("");
+}
+
+/* ------------------------------------------------------------------ *
+ *  Validation et navigation                                           *
+ * ------------------------------------------------------------------ */
+function setErr(id) { $("#" + id).classList.add("invalid"); }
+function clearErr(id) { const e = $("#" + id); if (e) e.classList.remove("invalid"); }
+function validate(n) {
+  const bad = [];
+  if (n === 1) { if (!S.nature) bad.push("f-nature"); if (!S.marche && !S.mObjet.trim()) bad.push("f-marche"); if (!S.typo) bad.push("f-typo"); }
+  if (n === 2) { if (!S.grav) bad.push("f-grav"); if (!S.date || S.date > todayISO()) bad.push("f-date"); if (S.desc.trim().length < 20) bad.push("f-desc"); }
+  if (n === 3) {
+    if (!S.attendu) bad.push("f-attendu"); if (!S.service) bad.push("f-service"); if (!S.contact.trim()) bad.push("f-contact");
+    if (!S.pieces || (needPJ() && !avecPieces())) bad.push("f-pj");
+    const attOk = S.attest && (!avecPieces() || S.engage);
+    $("#att-err").textContent = !S.attest ? "Cochez l'attestation pour envoyer." : "Engagez-vous à envoyer le courriel avec les pièces.";
+    if (!attOk) bad.push("f-att");
+  }
+  bad.forEach(setErr);
+  if (bad.length) $("#" + bad[0]).scrollIntoView({ behavior: "smooth", block: "center" });
+  return !bad.length;
+}
+function goto(n) {
+  step = n;
+  $$(".pane").forEach(p => p.classList.toggle("hidden", p.dataset.pane !== String(n)));
+  $$(".step").forEach(s => { const k = +s.dataset.s; s.classList.toggle("on", k === n); s.classList.toggle("done", (typeof n === "number" && k < n) || n === "ok"); });
+  $("#nav").classList.toggle("hidden", n === "ok");
+  $("#prev").style.visibility = n === 1 ? "hidden" : "visible";
+  $("#next").textContent = n === 3 ? "Enregistrer le signalement" : "Continuer";
+  if (n === 2) renderCond();
+  if (n === 3) { renderRecap(); renderPieces(); }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* ------------------------------------------------------------------ *
+ *  Envoi : création de la fiche dans Grist                            *
+ * ------------------------------------------------------------------ */
+function buildRecord() {
+  const F = TABLES.fiches, e = (c, v, k) => encode(META, F, c, v, k);
+  const m = REF.marches.find(x => x.id === S.marche), t = typo(), sv = REF.services.find(x => x.id === S.service);
+  const g = L.gravites.find(v => gnum(v) === S.grav);
+  const bloc = t ? t.Bloc : "", delai = bloc === "delai", prix = bloc === "prix", doc = bloc === "doc", besoin = bloc === "besoin";
+  const gt = SIG.colType(META, F, "Gravite");
+  const f = {
+    Date_signalement: e("Date_signalement", todayISO(), "date"),
+    Service: e("Service", sv ? { id: sv.id, label: sv.Nom } : null, "ref"),
+    Contact_site: e("Contact_site", S.contact.trim()),
+    Nature: e("Nature", S.nature),
+    // Marché choisi dans le référentiel : rattaché directement, et la saisie garde la trace de ce choix
+    Marche: e("Marche", m ? { id: m.id, label: mLabel(m) } : null, "ref"),
+    Marche_saisi: e("Marche_saisi", m ? m.Intitule : S.mObjet.trim()),
+    Marche_saisi_ref: e("Marche_saisi_ref", m ? (m.Reference || "") : S.mRef.trim()),
+    Marche_saisi_titulaire: e("Marche_saisi_titulaire", m ? (m.Titulaire || "") : S.mTit.trim()),
+    Typologie: e("Typologie", t ? { id: t.id, label: t.Libelle } : null, "ref"),
+    Date_constat: e("Date_constat", S.date, "date"),
+    Gravite: (gt === "Int" || gt === "Numeric") ? e("Gravite", S.grav, "num") : e("Gravite", g || ""),
+    Recurrence: e("Recurrence", S.rec),
+    Description: e("Description", S.desc.trim()),
+    Bon_commande: e("Bon_commande", S.bc.trim()),
+    Montant_enjeu: e("Montant_enjeu", S.montant, "num"),
+    Attendu: e("Attendu", S.attendu),
+    Demarches: e("Demarches", S.demarches, "list"),
+    Date_prevue: e("Date_prevue", (delai || doc) ? S.datePrevue : "", "date"),
+    Date_reelle: e("Date_reelle", (delai && !S.nonRealise) ? S.dateReelle : "", "date"),
+    Non_realise: delai && S.nonRealise ? e("Non_realise", true, "bool") : null,
+    Prix_attendu: e("Prix_attendu", prix ? S.prixAttendu : "", "num"),
+    Prix_constate: e("Prix_constate", prix ? S.prixFacture : "", "num"),
+    Quantite: e("Quantite", prix ? S.quantite : "", "num"),
+    Document_attendu: e("Document_attendu", doc ? S.document.trim() : ""),
+    Contournement: e("Contournement", besoin ? S.contournement : ""),
+    Pieces_annoncees: e("Pieces_annoncees", S.pieces),
+    Attestation: e("Attestation", S.attest, "bool"),
+    Statut: e("Statut", "Nouveau")
+  };
+  Object.keys(f).forEach(k => { if (f[k] === undefined || f[k] === null) delete f[k]; });
+  return f;
+}
+
+async function submit() {
+  const btn = $("#next"); btn.disabled = true; btn.textContent = "Enregistrement…";
+  try {
+    const r = await grist.docApi.applyUserActions([["AddRecord", TABLES.fiches, null, buildRecord()]]);
+    const rowId = r && r.retValues ? r.retValues[0] : null;
+    await refreshFiches();
+    const fiche = REF.fiches.find(x => x.id === rowId);
+    store.del(DRAFT_KEY);
+    showDone(fiche, rowId);
+    goto("ok");
+  } catch (e) {
+    banner("err", "L'enregistrement a échoué : " + esc(e && e.message || e) + ". Votre saisie est conservée ; réessayez ou contactez le pôle achats.");
+  } finally { btn.disabled = false; btn.textContent = "Enregistrer le signalement"; }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Courriel de transmission (objet structuré + résumé de la fiche)    *
+ * ------------------------------------------------------------------ */
+const one = s => String(s == null ? "" : s).replace(/[\r\n|]+/g, " ").replace(/\s+/g, " ").trim();
+const cut = (s, n) => s.length > n ? s.slice(0, n - 1).trim() + "…" : s;
+const eur = n => (n == null || n === "") ? "" : Number(n).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+
+/** Construit le courriel à partir de la fiche telle qu'enregistrée dans Grist. */
+function buildMail(f) {
+  const prefixe = P.prefixe_objet || "[SIGNALEMENT-MARCHES]";
+  const dest = P.destinataire_courriel || "";
+  const max = parseInt(P.longueur_max_courriel, 10) || 1800;
+  const m = REF.allMarches.find(x => x.id === refId(f.Marche));
+  const t = REF.allTypos.find(x => x.id === refId(f.Typologie));
+  const sv = REF.services.find(x => x.id === refId(f.Service));
+  const num = f.Numero || ("Fiche " + f.id);
+  const g = gnum(f.Gravite);
+  const marche = m ? m.Intitule : (f.Marche_saisi || "Marché non précisé");
+  const subject = [prefixe + " " + num, "Grav." + (g || "?"), one(f.Nature) || "-", one(m && m.Support) || "-",
+                   cut(one(marche), 40), cut(one(sv ? sv.Nom : ""), 30) || "-"].join(" | ");
+  const avec = String(f.Pieces_annoncees || "").startsWith("Oui");
+  const pieces = piecesDe(t);
+  const lignes = [];
+  lignes.push(avec ? "PIÈCES À JOINDRE À CE COURRIEL :" : "AUCUNE PIÈCE DISPONIBLE (fiche déclarative).");
+  if (avec) (pieces.length ? pieces : ["Échanges avec le titulaire", "Bon de commande"]).forEach(p => lignes.push("- " + p));
+  lignes.push("", "SIGNALEMENT " + num + " du " + fmtDate(f.Date_signalement));
+  lignes.push("Service : " + (sv ? sv.Nom : "") + (f.Contact_site ? " · contact : " + one(f.Contact_site) : ""));
+  lignes.push("Marché : " + one(m ? mLabel(m) : [f.Marche_saisi, f.Marche_saisi_ref].filter(Boolean).join(" – ") || "non précisé"));
+  const tit = m ? m.Titulaire : f.Marche_saisi_titulaire; if (tit) lignes.push("Titulaire : " + one(tit));
+  lignes.push("Nature : " + one(f.Nature) + " · " + one(t ? t.Libelle : ""));
+  lignes.push("Gravité : " + one(f.Gravite) + " · constaté le " + fmtDate(f.Date_constat) + (f.Recurrence ? " (" + f.Recurrence + ")" : ""));
+  if (f.Date_prevue && t && t.Bloc === "delai") {
+    const fin = toDate(f.Date_reelle) || (f.Non_realise ? new Date() : null), d0 = toDate(f.Date_prevue);
+    const n = fin ? Math.max(0, Math.round((fin - d0) / 864e5)) : null;
+    lignes.push("Prévu le " + fmtDate(f.Date_prevue) + (f.Date_reelle ? ", réalisé le " + fmtDate(f.Date_reelle) : ", non réalisé") + (n != null ? " : retard " + n + " j" : ""));
+  }
+  if (f.Prix_attendu && f.Prix_constate) {
+    const ec = (f.Prix_constate - f.Prix_attendu) * (f.Quantite || 1);
+    lignes.push("Prix : " + eur(f.Prix_attendu) + " → " + eur(f.Prix_constate) + (f.Quantite ? " × " + f.Quantite : "") + " · écart " + eur(ec));
+  }
+  if (f.Document_attendu) lignes.push("Document attendu : " + one(f.Document_attendu) + (f.Date_prevue ? " (prévu le " + fmtDate(f.Date_prevue) + ")" : ""));
+  if (f.Contournement) lignes.push("Contournement : " + one(f.Contournement));
+  if (f.Bon_commande) lignes.push("BC / EJ : " + one(f.Bon_commande));
+  if (f.Montant_enjeu) lignes.push("Montant en jeu : " + eur(f.Montant_enjeu));
+  lignes.push("Attente : " + ((ATTENDUS_UI[f.Attendu] || {}).t || one(f.Attendu)));
+  const dem = listVal(f.Demarches); if (dem.length) lignes.push("Démarches faites : " + dem.join(", "));
+  const pied = ["", "Fiche complète dans Grist (" + (P.libelle_pole || "pôle achats") + ").",
+                "Merci de ne pas modifier l'objet : il sert au classement."];
+  const desc = String(f.Description || "").trim();
+  const make = d => { const body = lignes.concat(["", "Description :", d], pied).join("\r\n");
+    return { body, href: "mailto:" + encodeURIComponent(dest).replace(/%40/g, "@") + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body) }; };
+  // Lien trop long pour certaines messageries : on raccourcit la description (elle reste entière dans Grist)
+  let res = make(desc), d = desc;
+  while (res.href.length > max && d.length > 40) { d = d.slice(0, Math.floor(d.length * 0.8)).trim(); res = make(d + "… [suite dans la fiche " + num + "]"); }
+  return { dest, subject, body: res.body, href: res.href, raccourci: d !== desc, fullBody: make(desc).body, avec };
+}
+
+function mailBlock(f, intro) {
+  const mail = buildMail(f);
+  return `<div class="mailbox">
+    <p>${intro}</p>
+    <div class="row">
+      <a class="btn primary" id="mail-open" href="${esc(mail.href)}">Ouvrir le courriel de transmission</a>
+      <button type="button" class="btn small" id="mail-copy">Copier le texte</button>
+      <button type="button" class="btn small" id="mail-copy-subj">Copier l'objet</button>
+    </div>
+    <div class="mailmeta"><b>À :</b> ${esc(mail.dest)}<br><b>Objet :</b> <span id="mail-subj">${esc(mail.subject)}</span></div>
+    <details><summary style="font-size:13px;cursor:pointer">Voir le texte du courriel</summary>
+      <textarea class="mailtext" id="mail-text" readonly aria-label="Texte du courriel">${esc(mail.fullBody)}</textarea></details>
+    ${mail.raccourci ? `<p class="help" style="margin-top:6px">Description raccourcie dans le lien ; elle est entière dans la fiche et dans « Copier le texte ».</p>` : ""}
+  </div>`;
+}
+function bindMail(f) {
+  const mail = buildMail(f);
+  const copy = async (txt, btn) => {
+    let ok = false;
+    try { await navigator.clipboard.writeText(txt); ok = true; }
+    catch (e) { const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select(); try { ok = document.execCommand("copy"); } catch (x) { ok = false; } ta.remove(); }
+    const old = btn.textContent; btn.textContent = ok ? "Copié ✓" : "Copie impossible : sélectionnez le texte"; setTimeout(() => btn.textContent = old, 2200);
+  };
+  const b1 = $("#mail-copy"), b2 = $("#mail-copy-subj");
+  if (b1) b1.onclick = () => copy("À : " + mail.dest + "\r\nObjet : " + mail.subject + "\r\n\r\n" + mail.fullBody, b1);
+  if (b2) b2.onclick = () => copy(mail.subject, b2);
+}
+
+function showDone(f, rowId) {
+  const num = f && f.Numero ? f.Numero : "Fiche n° " + rowId;
+  $("#done-num").textContent = num;
+  $("#done-msg").textContent = `Le pôle achats revient vers vous sous ${P.delai_reponse_jo || 5} jours ouvrés. Vous suivez l'avancement dans « Mes signalements ».`;
+  if (!f) { $("#done-mail").innerHTML = `<div class="banner warn">La fiche est enregistrée mais n'a pas pu être relue : retrouvez-la dans « Mes signalements » pour préparer le courriel.</div>`; return; }
+  const avec = String(f.Pieces_annoncees || "").startsWith("Oui");
+  $("#done-mail").innerHTML = mailBlock(f, avec
+    ? "<b>Dernière étape : envoyez le courriel de transmission avec vos pièces.</b> Votre signalement n'est complet qu'à réception du courriel. Ajoutez les pièces en pièce jointe avant d'envoyer."
+    : "<b>Dernière étape : envoyez le courriel de transmission.</b> Il permet au pôle achats d'accuser réception et de classer votre signalement.");
+  bindMail(f);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Onglet « Mes signalements »                                        *
+ * ------------------------------------------------------------------ */
+function statusClass(s) { s = String(s || ""); if (/^Clos/.test(s)) return "s-ok"; if (/Nouveau/.test(s)) return "s-new"; return "s-run"; }
+function mesFiches() {
+  // Avec les règles d'accès, Grist ne renvoie déjà que les fiches de l'agent (et de son service).
+  return REF.fiches.filter(f => f.Statut !== "Annulé");
+}
+function renderList() {
+  const list = mesFiches();
+  $("#nb").textContent = list.length;
+  $("#list-note").innerHTML = (!REF.monEmail && list.length > 30)
+    ? `<div class="banner">Vos droits vous donnent accès à toutes les fiches : seules les 50 plus récentes sont affichées ici. Le suivi complet se fait dans la page <b>Traitement</b>.</div>` : "";
+  const el = $("#fiches");
+  if (!list.length) { el.innerHTML = `<div class="card empty">Aucun signalement pour l'instant.</div>`; return; }
+  el.innerHTML = list.slice(0, 50).map(f => {
+    const m = REF.allMarches.find(x => x.id === refId(f.Marche)), t = REF.allTypos.find(x => x.id === refId(f.Typologie));
+    const mLab = m ? m.Intitule : (f.Marche_saisi || "Marché non précisé");
+    const ouvert = !/^Clos/.test(String(f.Statut || ""));
+    return `<article class="fiche"><div class="fiche-h"><b>${esc(f.Numero || ("Fiche " + f.id))} · ${esc(mLab)}</b><span class="pill ${statusClass(f.Statut)}">${esc(f.Statut || "Nouveau")}</span></div>
+      <div class="meta">${esc([fmtDate(f.Date_signalement), t ? t.Libelle : "", f.Gravite && ("Gravité " + f.Gravite)].filter(Boolean).join(" · "))}</div>
+      ${f.Retour_service ? `<div class="retour"><b>Retour du pôle achats :</b> ${esc(f.Retour_service)}</div>` : ""}
+      ${ouvert && !f.Courriel_recu ? `<div class="relance">Courriel de transmission pas encore reçu par le pôle. <button type="button" class="link" data-mail="${f.id}">Préparer le courriel</button><div data-mailbox="${f.id}"></div></div>` : ""}
+    </article>`;
+  }).join("");
+  $$("[data-mail]", el).forEach(b => b.onclick = () => {
+    const f = REF.fiches.find(x => x.id === +b.dataset.mail);
+    $$("[data-mailbox]", el).forEach(x => x.innerHTML = "");
+    $(`[data-mailbox="${f.id}"]`, el).innerHTML = mailBlock(f, "Envoyez ce courriel au pôle achats" + (String(f.Pieces_annoncees || "").startsWith("Oui") ? ", avec vos pièces jointes." : "."));
+    bindMail(f);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ *  Brouillon, onglets, bandeau                                        *
+ * ------------------------------------------------------------------ */
+function save() { store.set(DRAFT_KEY, S); }
+function banner(kind, html) { $("#banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : ""; }
+function applyProfile() { if (REF.me) { if (!S.service) S.service = REF.me.Service || null; if (!S.contact) S.contact = REF.me.Contact || ""; } }
+function renderAll() {
+  if (!S.rec && L.recs.length) S.rec = L.recs[0];
+  renderNatures(); renderMarche(); renderTypos(); renderGrav(); renderChips("#recs", L.recs, false, "rec");
+  renderAttendus(); renderChips("#demarches", L.demarches, true, "demarches", L.demarches[0]); renderService();
+  $("#date-constat").value = S.date; $("#date-constat").max = todayISO();
+  $("#attest").checked = !!S.attest; $("#engage").checked = !!S.engage;
+  $("#desc").value = S.desc; $("#desc-n").textContent = S.desc.length; $("#bc").value = S.bc; $("#montant").value = S.montant;
+}
+function setTab(which) {
+  $("#tab-new").setAttribute("aria-selected", which === "new"); $("#tab-list").setAttribute("aria-selected", which === "list");
+  $("#view-new").classList.toggle("hidden", which !== "new"); $("#view-list").classList.toggle("hidden", which !== "list");
+  if (which === "list") refreshFiches();
+}
+
+function bindStatic() {
+  $("#tab-new").onclick = () => setTab("new");
+  $("#tab-list").onclick = () => setTab("list");
+  $("#prev").onclick = () => goto(step - 1);
+  $("#next").onclick = () => { if (!validate(step)) return; if (step < 3) goto(step + 1); else submit(); };
+  $("#again").onclick = () => { S = blank(); applyProfile(); renderAll(); goto(1); banner("", ""); };
+  $("#date-constat").oninput = e => { S.date = e.target.value; save(); if (S.date && S.date <= todayISO()) clearErr("f-date"); };
+  $("#desc").oninput = e => { S.desc = e.target.value; $("#desc-n").textContent = S.desc.length; save(); if (S.desc.trim().length >= 20) clearErr("f-desc"); };
+  $("#bc").oninput = e => { S.bc = e.target.value; save(); };
+  $("#montant").oninput = e => { S.montant = e.target.value; save(); };
+  $("#attest").onchange = e => { S.attest = e.target.checked; save(); if (S.attest && (!avecPieces() || S.engage)) clearErr("f-att"); };
+  $("#engage").onchange = e => { S.engage = e.target.checked; save(); if (S.attest && S.engage) clearErr("f-att"); };
+}
+
+/* ------------------------------------------------------------------ *
+ *  Démarrage                                                          *
+ * ------------------------------------------------------------------ */
+(async function start() {
+  try { await connect(); }
+  catch (e) { const [t, h] = messageConnexion(e); fatal($("#view-new"), t, h); return; }
+  try { await loadData(); }
+  catch (e) {
+    if (e.install) fatal($("#view-new"), "Document à installer", `Tables absentes : <b>${e.install.map(esc).join(", ")}</b>. Le propriétaire du document doit lancer la page <b>Installation</b> (voir le guide de déploiement).`);
+    else fatal($("#view-new"), "Lecture du document impossible", esc(e && e.message || e));
+    return;
+  }
+  if (P.libelle_pole) $("#sub").textContent = P.libelle_pole + " · environ 2 minutes";
+  if (!P.destinataire_courriel) banner("warn", "Paramètre <b>destinataire_courriel</b> absent de la table Paramètres : le courriel de transmission n'aura pas de destinataire.");
+  const d = store.get(DRAFT_KEY);
+  if (d && typeof d === "object") S = Object.assign(blank(), d);
+  if (S.date > todayISO()) S.date = todayISO();
+  applyProfile();
+  bindStatic(); renderAll(); renderList();
+  $("#loading").remove(); $("#form").classList.remove("hidden");
+  goto(1);
+})();
+})();
+</script>
+</body>
+</html>

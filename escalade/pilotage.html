@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pilotage des signalements</title>
+<!--
+  Widget Grist « Tableau de bord des signalements – marchés mutualisés » (lecture seule)
+  Pôle achats DPFAC – DIR-SG Grand Ouest
+  - Dans Grist : page « Pilotage » (créée par installation.html) ; niveau d'accès « Accès complet au document ».
+  - Lit les tables Fiches, Marches, Services, Typologies, Parametres. Aucune donnée dans ce fichier.
+  - Les fiches non rattachées au référentiel apparaissent sous leur libellé saisi, marquées « à normaliser » ;
+    le dossier marché ne porte que sur les marchés normalisés.
+  - Colonne facultative Marches.Montant_commande_12m (€, extraction Chorus) : active les « fiches pour 100 k€ ».
+-->
+<style>
+/* --- commun.css (inclus) --- */
+/* =====================================================================
+ *  commun.css — identité visuelle partagée des widgets « Signalements »
+ *  Clair / sombre via variables CSS (prefers-color-scheme + data-theme).
+ * ===================================================================== */
+:root{
+  --bg:#f6f6f9; --surface:#ffffff; --surface-2:#f0f0f7; --line:#dddde6; --line-strong:#b9b9c9; --grid:#ececf2;
+  --ink:#161616; --ink-2:#3a3a4a; --muted:#666677;
+  --accent:#000091; --accent-ink:#ffffff; --accent-soft:#e3e3fd; --focus:#0a76f6;
+  --ok:#18753c; --ok-soft:#dffbe7; --warn:#b77d00; --warn-soft:#fdf3dc; --crit:#ce0500; --crit-soft:#fde4e4;
+  --g1:#1f8d49; --g1s:#e4f6ea; --g2:#b7791f; --g2s:#fdf3dc; --g3:#d64d00; --g3s:#fde8dc; --g4:#ce0500; --g4s:#fde4e4;
+  --radius:10px; --shadow:0 1px 2px rgba(0,0,30,.06),0 4px 14px rgba(0,0,60,.06);
+  --font:Marianne,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121218; --surface:#1c1c25; --surface-2:#252532; --line:#33334a; --line-strong:#4a4a66; --grid:#2a2a36;
+    --ink:#ededf5; --ink-2:#c8c8d8; --muted:#9a9ab0;
+    --accent:#8585f6; --accent-ink:#0d0d26; --accent-soft:#2a2a55; --focus:#6ea8ff;
+    --ok:#4fd187; --ok-soft:#163a25; --warn:#f0c060; --warn-soft:#3a2f12; --crit:#ff6b66; --crit-soft:#421616;
+    --g1:#4fd187; --g1s:#163a25; --g2:#f0c060; --g2s:#3a2f12; --g3:#ff8c4a; --g3s:#40220f; --g4:#ff6b66; --g4s:#421616;
+    --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121218; --surface:#1c1c25; --surface-2:#252532; --line:#33334a; --line-strong:#4a4a66; --grid:#2a2a36;
+  --ink:#ededf5; --ink-2:#c8c8d8; --muted:#9a9ab0;
+  --accent:#8585f6; --accent-ink:#0d0d26; --accent-soft:#2a2a55; --focus:#6ea8ff;
+  --ok:#4fd187; --ok-soft:#163a25; --warn:#f0c060; --warn-soft:#3a2f12; --crit:#ff6b66; --crit-soft:#421616;
+  --g1:#4fd187; --g1s:#163a25; --g2:#f0c060; --g2s:#3a2f12; --g3:#ff8c4a; --g3s:#40220f; --g4:#ff6b66; --g4s:#421616;
+  --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+h1{font-size:19px;line-height:1.25;margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:17px;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.brand{display:flex;gap:12px;align-items:center}
+.flag{flex:none;width:6px;height:38px;border-radius:3px;background:linear-gradient(var(--accent) 0 33%,var(--surface) 33% 66%,#e1000f 66%);border:1px solid var(--line)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px}
+.banner{border-radius:var(--radius);padding:10px 14px;font-size:13.5px;margin-bottom:12px;border:1px solid var(--line);background:var(--surface)}
+.banner.warn{border-color:var(--warn);background:var(--warn-soft)}
+.banner.err{border-color:var(--crit);background:var(--crit-soft)}
+.banner.ok{border-color:var(--ok);background:var(--ok-soft)}
+.btn{font:inherit;font-weight:600;border-radius:8px;padding:9px 16px;cursor:pointer;border:1.5px solid var(--accent);background:transparent;color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.link{background:none;border:0;color:var(--accent);font:inherit;font-size:13px;cursor:pointer;text-decoration:underline;padding:0}
+input[type=text],input[type=date],input[type=number],input[type=search],input[type=email],textarea,select{
+  width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:4px;background:var(--surface-2);color:var(--ink-2);margin-right:6px;vertical-align:1px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.empty{text-align:center;color:var(--muted);padding:24px 10px;font-size:14px}
+.muted{color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hidden{display:none!important}
+.fatal{max-width:560px;margin:40px auto;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 24px}
+.fatal-ico{width:42px;height:42px;border-radius:50%;margin:0 auto 10px;display:grid;place-items:center;font-weight:800;font-size:22px;background:var(--warn-soft);color:var(--warn)}
+.fatal div{color:var(--ink-2);font-size:14px}
+.loading{text-align:center;color:var(--muted);padding:40px 10px}
+
+</style>
+<style>
+/* Mise en page : bandeau de filtres, rangée d'indicateurs, grille 2 colonnes de graphiques, dossier marché pleine largeur. */
+:root{
+  --bg:#f5f5f8; --surface:#ffffff; --surface-2:#eeeef4; --line:#e1e1ea; --grid:#ececf2;
+  --ink:#16161d; --ink-2:#44445a; --muted:#6b6b80;
+  --accent:#000091; --accent-soft:#e6e6fb; --focus:#0a76f6;
+  --s1:#2a78d6;                                   /* série unique */
+  --q1:#86b6ef; --q2:#3987e5; --q3:#1c5cab; --q4:#0d366b;   /* gravité 1→4, rampe ordinale */
+  --h0:#f0f4fa;                                   /* cellule vide de la matrice */
+  --good:#0ca30c; --warn:#b77d00; --crit:#d03b3b;
+  --font: Marianne,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  --radius:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121218; --surface:#1b1b23; --surface-2:#252531; --line:#30303e; --grid:#2a2a36;
+    --ink:#ececf4; --ink-2:#c4c4d4; --muted:#9a9ab0;
+    --accent:#9a9af8; --accent-soft:#2a2a55; --focus:#6ea8ff;
+    --s1:#3987e5; --q1:#184f95; --q2:#256abf; --q3:#5598e7; --q4:#9ec5f4; --h0:#20202a;
+    --good:#2fbf4f; --warn:#e0a52a; --crit:#e66767; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121218; --surface:#1b1b23; --surface-2:#252531; --line:#30303e; --grid:#2a2a36;
+  --ink:#ececf4; --ink-2:#c4c4d4; --muted:#9a9ab0;
+  --accent:#9a9af8; --accent-soft:#2a2a55; --focus:#6ea8ff;
+  --s1:#3987e5; --q1:#184f95; --q2:#256abf; --q3:#5598e7; --q4:#9ec5f4; --h0:#20202a;
+  --good:#2fbf4f; --warn:#e0a52a; --crit:#e66767; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:14px/1.45 var(--font);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:16px 32px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between}
+h1{font-size:20px;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+select,button{font:inherit;color:var(--ink)}
+select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0;max-width:220px}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;align-self:flex-end}
+.btn:hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.banner{border:1px solid var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--surface));border-radius:10px;padding:8px 12px;font-size:13px}
+.banner.err{border-color:var(--crit);background:color-mix(in srgb,var(--crit) 10%,var(--surface))}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+@media (max-width:980px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:520px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;min-width:0}
+.kpi .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kpi .v{font-size:26px;font-weight:700;line-height:1.15;margin-top:4px}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--muted);margin-left:3px}
+.kpi .d{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-weight:600}
+.tag.up{color:var(--crit)}.tag.down{color:var(--good)}.tag.ok{color:var(--good)}.tag.ko{color:var(--crit)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;min-width:0}
+.panel.full{grid-column:1/-1}
+.panel h2{font-size:15px;margin:0;text-wrap:balance}
+.panel .lead{font-size:12.5px;color:var(--muted);margin:2px 0 10px}
+.chart{width:100%;min-height:60px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--ink-2);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td{padding:7px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
+td:first-child{white-space:normal;min-width:180px}
+tr.row{cursor:pointer}
+tr.row:hover td,tr.row.sel td{background:var(--accent-soft)}
+.bar-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.minibar{height:8px;border-radius:0 4px 4px 0;background:var(--s1);min-width:2px}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--surface-2);color:var(--ink-2);margin-right:6px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2)}
+.pill.crit{color:var(--crit)}
+.dossier-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.mk{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:12px}
+@media (max-width:760px){.mk{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.mk div{background:var(--surface-2);border-radius:10px;padding:8px 10px}
+.mk b{display:block;font-size:18px}
+.mk span{font-size:11.5px;color:var(--muted)}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:760px){.cols{grid-template-columns:minmax(0,1fr)}}
+.cols h3{font-size:13px;margin:0 0 6px;color:var(--ink-2)}
+.list{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.list .it{border-left:3px solid var(--line);padding:2px 8px}
+.list .it.g4{border-left-color:var(--crit)}
+.list .it small{display:block;color:var(--muted);font-size:12px}
+.note{font-size:12px;color:var(--muted)}
+#tip{position:fixed;pointer-events:none;z-index:20;background:var(--ink);color:var(--surface);font-size:12px;padding:6px 9px;border-radius:6px;max-width:260px;opacity:0;transition:opacity .08s}
+#tip b{font-weight:700}
+@media (prefers-reduced-motion:reduce){#tip{transition:none}}
+.empty{color:var(--muted);font-size:13px;padding:16px 0;text-align:center}
+.watch{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px}
+.watch:empty{display:none}
+.watch .w{display:inline-flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+.watch .w b{font-variant-numeric:tabular-nums}
+.watch .w.on{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,var(--surface))}
+.watch .t{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin-right:2px}
+.pill.norm{color:var(--warn)}
+body{font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap" id="root">
+  <header>
+    <div>
+      <h1>Pilotage des signalements – marchés mutualisés</h1>
+      <div class="sub" id="sub">Pôle achats · DPFAC – DIR-SG Grand Ouest</div>
+    </div>
+    <div class="filters">
+      <label for="f-per">Période<select id="f-per">
+        <option value="12">12 derniers mois</option><option value="3">3 derniers mois</option>
+        <option value="ytd">Année en cours</option><option value="all">Tout</option></select></label>
+      <label for="f-sup">Support<select id="f-sup"><option value="">Tous</option></select></label>
+      <label for="f-sie">Siège<select id="f-sie"><option value="">Tous</option></select></label>
+      <label for="f-svc">Service ou établissement<select id="f-svc"><option value="">Tous</option></select></label>
+      <label for="f-pj" style="flex-direction:row;align-items:center;gap:6px;align-self:flex-end;padding-bottom:6px"><input type="checkbox" id="f-pj"> Fiches étayées uniquement</label>
+      <button class="btn" id="refresh" type="button">Actualiser</button>
+    </div>
+  </header>
+  <div id="banner"></div>
+
+  <section class="watch" id="watch" aria-label="Points d'attention"></section>
+  <section class="kpis" id="kpis" aria-label="Indicateurs clés"></section>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Signalements par mois</h2>
+      <p class="lead">Barres empilées par gravité ; la plus foncée est « critique ».</p>
+      <div class="chart" id="c-month"></div>
+      <div class="legend" id="lg-grav"></div>
+    </section>
+    <section class="panel">
+      <h2>Sur quoi portent les difficultés</h2>
+      <p class="lead">Nombre de fiches par type de difficulté, regroupé par famille.</p>
+      <div class="chart" id="c-typo"></div>
+    </section>
+
+    <section class="panel full">
+      <h2>Marchés à surveiller</h2>
+      <p class="lead">Classés par score de gravité (somme des gravités 1 à 4). Cliquez sur un marché pour ouvrir son dossier. Les saisies non rattachées sont marquées « à normaliser ».</p>
+      <div class="tbl-wrap"><table id="t-marches"></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>Gravité selon la famille</h2>
+      <p class="lead">Plus la case est foncée, plus il y a de fiches.</p>
+      <div class="chart" id="c-heat"></div>
+    </section>
+    <section class="panel">
+      <h2>Ce que demandent les services, ce qui a été obtenu</h2>
+      <p class="lead">Attente exprimée à la saisie, puis issue des fiches closes.</p>
+      <div class="cols">
+        <div><h3>Attentes</h3><div class="chart" id="c-att"></div></div>
+        <div><h3>Issues</h3><div class="chart" id="c-iss"></div></div>
+      </div>
+    </section>
+
+    <section class="panel full" id="dossier">
+      <div class="dossier-head">
+        <div><h2 id="d-title">Dossier marché</h2><p class="lead" id="d-sub" style="margin:2px 0 0"></p></div>
+        <label for="f-mar" class="note">Marché <select id="f-mar"></select></label>
+      </div>
+      <div class="mk" id="d-kpi"></div>
+      <div class="cols">
+        <div><h3>Types de difficulté</h3><div class="chart" id="d-typo"></div></div>
+        <div><h3>Sièges et services concernés</h3><div class="chart" id="d-svc"></div></div>
+      </div>
+      <div class="cols" style="margin-top:14px">
+        <div><h3>Dernières fiches</h3><div class="list" id="d-list"></div></div>
+        <div><h3>Pour la revue de contrat</h3><div class="list" id="d-revue"></div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Adéquation des marchés au besoin</h2>
+      <p class="lead">Fiches « le marché ne répond pas à mon besoin », par marché.</p>
+      <div class="chart" id="c-adeq"></div>
+    </section>
+    <section class="panel">
+      <h2>Participation par siège et par service</h2>
+      <p class="lead">Fiches déposées par service sur la période. Un service absent n'est pas forcément un service sans difficulté.</p>
+      <div class="chart" id="c-svc"></div>
+    </section>
+  </div>
+  <p class="note" id="foot"></p>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+/* --- commun.js (inclus) --- */
+/* =====================================================================
+ *  commun.js — utilitaires partagés par les widgets Grist
+ *  « Signalements – marchés mutualisés » (pôle achats DPFAC – DIR-SG Grand Ouest)
+ *
+ *  Aucune donnée ici : uniquement du code. Les données vivent dans le document Grist.
+ * ===================================================================== */
+(function (global) {
+  "use strict";
+
+  /* ------------------------------------------------------------------ *
+   *  Paramétrage technique                                              *
+   * ------------------------------------------------------------------ */
+  // Instances Grist essayées pour charger l'API des widgets, après l'origine de la page hôte.
+  const ORIGINES_GRIST = ["https://grist.numerique.gouv.fr", "https://docs.getgrist.com"];
+  const TABLES = { params: "Parametres", services: "Services", users: "Utilisateurs", marches: "Marches",
+                   typos: "Typologies", fiches: "Fiches" };
+
+  /* ------------------------------------------------------------------ *
+   *  Utilitaires                                                        *
+   * ------------------------------------------------------------------ */
+  const $ = (s, el) => (el || document).querySelector(s);
+  const $$ = (s, el) => [...(el || document).querySelectorAll(s)];
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // fetchTable renvoie des colonnes {id:[…], Col:[…]} → tableau d'objets
+  const toRows = t => {
+    if (!t || !t.id) return [];
+    const keys = Object.keys(t).filter(k => !k.startsWith("gristHelper_"));
+    return t.id.map((_, i) => { const o = {}; keys.forEach(k => o[k] = t[k][i]); return o; });
+  };
+  // Référence : nombre, ["R", id], ou texte (colonne mal typée)
+  const refId = v => Array.isArray(v) ? v[1] : v;
+  // Dates Grist : secondes depuis 1970 (UTC), ou chaîne ISO
+  const toDate = v => {
+    if (v == null || v === "" || v === 0) return null;
+    const d = typeof v === "number" ? new Date(v * 1000) : new Date(v);
+    return isNaN(d) ? null : d;
+  };
+  const fmtDate = v => { const d = toDate(v); return d ? d.toLocaleDateString("fr-FR", { timeZone: "UTC" }) : ""; };
+  const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+  const isoToEpoch = iso => { const [y, m, d] = String(iso).split("-").map(Number); return Date.UTC(y, m - 1, d) / 1000; };
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error("délai dépassé")), ms))]);
+  // Texte sans accents, minuscules, ponctuation remplacée par des espaces
+  const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ").trim();
+  const listVal = v => Array.isArray(v) ? v.filter((x, i) => !(i === 0 && x === "L")) : (v ? String(v).split(/\s*,\s*/) : []);
+  // Jours ouvrés (lun.-ven.) après a jusqu'à b inclus, en UTC — même règle que les formules Grist
+  function joursOuvres(a, b) {
+    if (!a || !b) return null;
+    let n = 0; const d = new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate()));
+    const e = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
+    while (d.getTime() < e) { d.setUTCDate(d.getUTCDate() + 1); const w = d.getUTCDay(); if (w !== 0 && w !== 6) n++; }
+    return n;
+  }
+  // Stockage local protégé (la page doit fonctionner sans)
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* idem */ } }
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Connexion Grist                                                    *
+   * ------------------------------------------------------------------ */
+  function loadScript(src) {
+    return new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = src; s.onload = res; s.onerror = () => rej(new Error("chargement impossible : " + src));
+      document.head.appendChild(s);
+    });
+  }
+  /** Renvoie "grist" ou lève une erreur { code: "horsgrist" | "api" | "acces" }. */
+  async function connect() {
+    if (window === window.parent) throw Object.assign(new Error("hors Grist"), { code: "horsgrist" });
+    const origines = [];
+    try { if (document.referrer) origines.push(new URL(document.referrer).origin); } catch (e) { /* referrer absent */ }
+    ORIGINES_GRIST.forEach(o => { if (!origines.includes(o)) origines.push(o); });
+    for (const o of origines) {
+      try { await loadScript(o + "/grist-plugin-api.js"); if (window.grist) break; } catch (e) { /* origine suivante */ }
+    }
+    if (!window.grist) throw Object.assign(new Error("API Grist introuvable"), { code: "api" });
+    grist.ready({ requiredAccess: "full" });
+    try { await withTimeout(grist.docApi.listTables(), 5000); }
+    catch (e) { throw Object.assign(new Error("accès refusé"), { code: "acces" }); }
+    return "grist";
+  }
+
+  async function fetchRows(table) {
+    try { return toRows(await grist.docApi.fetchTable(table)); } catch (e) { return null; }
+  }
+
+  /** Métadonnées : types, choix et options des colonnes, par table. */
+  async function loadMeta() {
+    const T = toRows(await grist.docApi.fetchTable("_grist_Tables"));
+    const C = toRows(await grist.docApi.fetchTable("_grist_Tables_column"));
+    const byId = {}; T.forEach(t => byId[t.id] = t.tableId);
+    const meta = {};
+    C.forEach(c => {
+      const t = byId[c.parentId]; if (!t) return;
+      let o = {}; try { o = c.widgetOptions ? JSON.parse(c.widgetOptions) : {}; } catch (e) { o = {}; }
+      (meta[t] = meta[t] || {})[c.colId] = { type: c.type, choices: o.choices || [], options: o, label: c.label, ref: c.id };
+    });
+    return meta;
+  }
+  const colType = (meta, t, c) => meta && meta[t] && meta[t][c] ? meta[t][c].type : undefined;
+  /** Choix d'une colonne Choice / ChoiceList, lus dans Grist. */
+  const choices = (meta, t, c) => (meta && meta[t] && meta[t][c] && meta[t][c].choices) || [];
+
+  /** Encode une valeur selon le type réel de la colonne (document éventuellement mal typé).
+   *  Renvoie undefined si la colonne n'existe pas (on ne l'écrit pas), null si valeur vide. */
+  function encode(meta, table, col, val, kind) {
+    const known = meta && meta[table];
+    const t = colType(meta, table, col);
+    if (known && t === undefined) return undefined;
+    if (val === "" || val == null || (Array.isArray(val) && !val.length)) return null;
+    switch (kind) {
+      case "ref": return t && t.startsWith("Ref:") ? val.id : val.label;
+      case "date": return (!t || t === "Date" || t.startsWith("DateTime")) ? isoToEpoch(val) : val;
+      case "list": return (!t || t === "ChoiceList") ? ["L"].concat(val) : val.join(", ");
+      case "num": {
+        const n = Number(String(val).replace(/\s/g, "").replace(",", ".")); if (isNaN(n)) return null;
+        return (t === "Text" || t === "Any") ? String(n) : n;
+      }
+      case "bool": return (t === "Text") ? (val ? "Oui" : "Non") : !!val;
+      default: return val;
+    }
+  }
+
+  /** Paramètres (table Parametres : Cle → Valeur). */
+  async function loadParams() {
+    const rows = await fetchRows(TABLES.params) || [];
+    const p = {}; rows.forEach(r => { if (r.Cle) p[String(r.Cle).trim()] = r.Valeur == null ? "" : String(r.Valeur).trim(); });
+    return p;
+  }
+
+  /** Nom du siège d'un service (Siege vide → le service est lui-même un siège). */
+  function siegeOf(services) {
+    const byId = new Map(services.map(s => [s.id, s]));
+    return s => {
+      if (!s) return "Non rattaché";
+      const v = refId(s.Siege);
+      if (v == null || v === "" || v === 0) return s.Nom;
+      if (typeof v === "number") { const h = byId.get(v); return h ? h.Nom : s.Nom; }
+      return String(v);
+    };
+  }
+
+  /** Écran bloquant (pas de repli sur des données codées : tout vient de Grist). */
+  function fatal(el, titre, html) {
+    el.innerHTML = `<div class="fatal" role="alert"><div class="fatal-ico" aria-hidden="true">!</div>
+      <h2>${esc(titre)}</h2><div>${html}</div></div>`;
+  }
+  function messageConnexion(err) {
+    if (err && err.code === "horsgrist") return ["Ouvrez ce widget dans Grist",
+      "Cette page est un widget personnalisé : elle s'affiche dans le document Grist du pôle achats (<b>grist.numerique.gouv.fr</b>). Elle ne contient aucune donnée par elle-même."];
+    if (err && err.code === "acces") return ["Accès au document à autoriser",
+      "Le widget n'a pas accès au document. Dans le panneau de droite du widget, réglez le niveau d'accès sur <b>Accès complet au document</b>."];
+    return ["Connexion à Grist impossible", "L'API des widgets Grist n'a pas pu être chargée. Rechargez la page ; si le problème persiste, contactez le pôle achats."];
+  }
+
+  global.SIG = { TABLES, $, $$, esc, toRows, refId, toDate, fmtDate, todayISO, isoToEpoch, withTimeout, norm, listVal,
+    joursOuvres, store, connect, fetchRows, loadMeta, colType, choices, encode, loadParams, siegeOf, fatal, messageConnexion };
+})(window);
+
+</script>
+<script>
+(function(){
+"use strict";
+const T = { fiches:"Fiches", marches:"Marches", services:"Services", typos:"Typologies" };
+let ENGAGEMENT_JO = 5;               // délai de prise en charge annoncé (jours ouvrés) — lu dans Parametres
+const GRAV = ["Mineure","Significative","Majeure","Critique"];
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const eur = n => (n||0).toLocaleString("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+const nf = (n,d=0) => (n==null||isNaN(n)) ? "–" : n.toLocaleString("fr-FR",{maximumFractionDigits:d,minimumFractionDigits:d});
+const DAY = 864e5;
+const refId = v => typeof v==="number" ? v : (Array.isArray(v) ? v[1] : v);
+const toDate = v => { if(v==null||v==="") return null; if(typeof v==="number") return new Date(v*1000); const d=new Date(v); return isNaN(d)?null:d; };
+const median = a => { if(!a.length) return null; const s=[...a].sort((x,y)=>x-y), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+function bizDays(a,b){ return SIG.joursOuvres(a,b); }
+const MOIS = ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+
+/* ---------------- Données (lues dans Grist uniquement) ---------------- */
+let RAW = null;   // {fiches, marches, services, typos}
+const { norm } = SIG;
+async function fetchGrist(){
+  const f = SIG.fetchRows;
+  const [fi,ma,se,ty] = await Promise.all([f(T.fiches),f(T.marches),f(T.services),f(T.typos)]);
+  if(!fi||!ma) throw new Error("Tables Fiches ou Marches introuvables : lancez la page Installation");
+  const P = await SIG.loadParams();
+  const d = parseInt(P.delai_reponse_jo,10); if(d>0) ENGAGEMENT_JO = d;
+  if(P.libelle_pole) $("#sub").textContent = P.libelle_pole;
+  return { fiches:fi, marches:ma, services:se||[], typos:ty||[] };
+}
+
+/* Normalisation : une fiche = un objet propre, quel que soit le typage Grist */
+function normalize(raw){
+  const typos = raw.typos.length ? raw.typos : [];
+  const tyById = new Map(typos.map(t=>[t.id,t]));
+  const tyByLabel = new Map(typos.map(t=>[t.Libelle,t]));
+  const mById0 = new Map(raw.marches.map(m=>[m.id,m]));
+  // Un marché fusionné renvoie vers le marché conservé
+  const mById = new Map(raw.marches.map(m=>{ let x=m, k=0; while(x && refId(x.Fusionne_dans) && k++<5) x=mById0.get(refId(x.Fusionne_dans))||x; return [m.id,x]; }));
+  const mByLabel = new Map(raw.marches.map(m=>[m.Intitule,m]));
+  const sById = new Map(raw.services.map(s=>[s.id,s]));
+  const sByLabel = new Map(raw.services.map(s=>[s.Nom,s]));
+  // Siège de rattachement : colonne Siege (référence vers Services ou texte) ; vide = le service est lui-même un siège
+  const siegeName = s => { if(!s) return "Non rattaché"; const v=refId(s.Siege); if(v==null||v===""||v===0) return s.Nom;
+    if(typeof v==="number"){ const h=sById.get(v); return h?h.Nom:s.Nom; } return String(v); };
+  const today=new Date();
+  const fiches = raw.fiches.filter(f=>f.Statut!=="Annulé").map(f=>{
+    const tyv=refId(f.Typologie), mv=refId(f.Marche), sv=refId(f.Service);
+    const ty = typeof tyv==="number" ? tyById.get(tyv) : tyByLabel.get(tyv);
+    const m = (typeof mv==="number" ? mById.get(mv) : mByLabel.get(mv)) || null;
+    const saisie = String(f.Marche_saisi || f.Marche_autre || "").trim();
+    const s = typeof sv==="number" ? sById.get(sv) : sByLabel.get(sv);
+    const g = parseInt(f.Gravite,10) || null;
+    const d = toDate(f.Date_signalement);
+    const pec = toDate(f.Date_prise_en_charge), clo = toDate(f.Date_cloture);
+    const dp = toDate(f.Date_prevue), dr = toDate(f.Date_reelle);
+    const statut = f.Statut || "Nouveau";
+    const open = !/^Clos/.test(statut);
+    let retard=null; if (dp && ty && ty.Bloc==="delai"){ const end = dr || (f.Non_realise ? (clo || today) : null); if(end) retard=Math.max(0,Math.round((end-dp)/DAY)); }
+    let ecart=null; if (f.Prix_attendu && f.Prix_constate && (f.Nature || (ty&&ty.Nature)) !== "Adéquation") ecart=(Number(f.Prix_constate)-Number(f.Prix_attendu))*(Number(f.Quantite)||1);
+    return { id:f.id, num:f.Numero||("Fiche "+f.id), date:d, marche:m||null, marcheLib: m?m.Intitule:(saisie||"Marché non précisé"),
+      normalise: !!m, cleSaisie: norm(saisie), courriel: !!f.Courriel_recu,
+      service:s||null, siege:siegeName(s), typo:ty||null, famille: ty ? (ty.Famille||"Autre") : "Non classé", typoLib: ty?ty.Libelle:"Non classé",
+      nature: f.Nature || (ty&&ty.Nature) || "", grav:g, statut, open, pecJ: pec&&d?bizDays(d,pec):null, cloJ: clo&&d?bizDays(d,clo):null,
+      issue:f.Issue||"", attendu:f.Attendu||"", retard, ecart, pen:Number(f.Penalites)||0, ref:Number(f.Refactions)||0,
+      enjeu:Number(f.Montant_enjeu)||0, preuve:f.Niveau_preuve||"", etayee:false, contournement:f.Contournement||"", desc:f.Description||"", pecDate:pec };
+  }).map(f=>(f.etayee = /^(Étayée|Partielle)$/.test(f.preuve), f)).filter(f=>f.date);
+  return { fiches, marches:raw.marches, services:raw.services.map(x=>({...x, siege:siegeName(x)})), typos };
+}
+
+/* ---------------- Filtres ---------------- */
+let N=null;
+function periodRange(){
+  const v=$("#f-per").value, now=new Date(); let from=null;
+  if(v==="12") from=new Date(now.getFullYear(),now.getMonth()-11,1);
+  else if(v==="3") from=new Date(now.getFullYear(),now.getMonth()-2,1);
+  else if(v==="ytd") from=new Date(now.getFullYear(),0,1);
+  return { from, to:now, months: v==="all"?null:(v==="12"?12:v==="3"?3:now.getMonth()+1) };
+}
+function filtered(withPeriod=true){
+  const sup=$("#f-sup").value, sie=$("#f-sie").value, svc=$("#f-svc").value, {from}=periodRange();
+  return N.fiches.filter(f => (!withPeriod || !from || f.date>=from) && (!sup || (f.marche&&f.marche.Support===sup)) && (!sie || f.siege===sie) && (!svc || (f.service&&String(f.service.id)===svc)) && (!$("#f-pj").checked || f.etayee));
+}
+function fillFilters(){
+  const sups=[...new Set(N.marches.map(m=>m.Support).filter(Boolean))].sort();
+  $("#f-sup").innerHTML=`<option value="">Tous</option>`+sups.map(s=>`<option>${esc(s)}</option>`).join("");
+  const sieges=[...new Set(N.services.map(s=>s.siege))].sort((a,b)=>a.localeCompare(b,"fr"));
+  $("#f-sie").innerHTML=`<option value="">Tous</option>`+sieges.map(x=>`<option>${esc(x)}</option>`).join("");
+  let st={}; try{ st=JSON.parse(localStorage.getItem("tdb-signalements-filtres")||"{}"); }catch(e){}
+  ["per","sup","sie"].forEach(k=>{ const el=$("#f-"+k); if(st[k]!=null && [...el.options].some(o=>o.value===st[k])) el.value=st[k]; });
+  fillSvc(); const el=$("#f-svc"); if(st.svc!=null && [...el.options].some(o=>o.value===st.svc)) el.value=st.svc;
+}
+/* Liste des services, groupée par siège et limitée au siège choisi ; le siège en tête de son groupe */
+function fillSvc(){
+  const sie=$("#f-sie").value;
+  const list=N.services.filter(s=>!sie||s.siege===sie);
+  const groups=[...new Set(list.map(s=>s.siege))].sort((a,b)=>a.localeCompare(b,"fr"));
+  $("#f-svc").innerHTML=`<option value="">Tous</option>`+groups.map(g=>`<optgroup label="${esc(g)}">`+
+    list.filter(s=>s.siege===g).sort((a,b)=>(b.Nom===g)-(a.Nom===g)||String(a.Nom).localeCompare(b.Nom,"fr")).map(s=>`<option value="${s.id}">${esc(s.Nom)}${s.Nom===g?" (siège)":""}</option>`).join("")+`</optgroup>`).join("");
+}
+function saveFilters(){ try{ localStorage.setItem("tdb-signalements-filtres", JSON.stringify({per:$("#f-per").value,sup:$("#f-sup").value,sie:$("#f-sie").value,svc:$("#f-svc").value})); }catch(e){} }
+
+/* ---------------- Infobulle ---------------- */
+const tip=$("#tip");
+document.addEventListener("pointermove",e=>{
+  const t=e.target.closest&&e.target.closest("[data-tip]");
+  if(!t){ tip.style.opacity=0; return; }
+  tip.innerHTML=t.getAttribute("data-tip"); tip.style.opacity=1;
+  const w=tip.offsetWidth, h=tip.offsetHeight; let x=e.clientX+14, y=e.clientY-h-10;
+  if(x+w>innerWidth-8) x=e.clientX-w-14; if(y<8) y=e.clientY+16;
+  tip.style.left=x+"px"; tip.style.top=y+"px";
+});
+document.addEventListener("pointerleave",()=>tip.style.opacity=0);
+
+/* ---------------- Primitives SVG ---------------- */
+const W = el => Math.max(280, Math.floor(el.clientWidth||600));
+function niceMax(v){ if(v<=5) return 5; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; return (n<=1?1:n<=2?2:n<=5?5:10)*p; }
+function ticks(max){ const n=niceMax(max), step = n/ (n<=5?n: 5); const out=[]; for(let v=0; v<=n+1e-9; v+=step) out.push(Math.round(v)); return {max:n, ticks:out}; }
+
+/* Barres horizontales : items = [{label, value, tip, group?}] */
+function hbars(el, items, opt={}){
+  if(!items.length){ el.innerHTML=`<div class="empty">Aucune donnée sur la période.</div>`; return; }
+  const w=W(el), lw=Math.min(opt.labelW||200, Math.round(w*0.48)), rowH=24, gapG=opt.groups?18:0;
+  const pad=Math.max(44, 12+6.8*Math.max(...items.map(i=>String(i.display||nf(i.value)).length)));
+  const max=Math.max(...items.map(i=>i.value),1);
+  let y=4, out=[], lastG=null;
+  const ink=css("--ink"), ink2=css("--ink-2"), muted=css("--muted"), c=opt.color||css("--s1");
+  const maxChars=Math.floor((lw-8)/6.3);
+  items.forEach(it=>{
+    if(opt.groups && it.group!==lastG){ if(lastG!==null) y+=6; out.push(`<text x="0" y="${y+11}" font-size="11" font-weight="600" fill="${muted}" letter-spacing=".04em">${esc(String(it.group).toUpperCase())}</text>`); y+=gapG; lastG=it.group; }
+    const bw=it.value>0 ? Math.max(6,(w-lw-pad)*it.value/max) : 0;
+    const lab = it.label.length>maxChars ? it.label.slice(0,maxChars-1)+"…" : it.label;
+    out.push(`<g data-tip="${esc(it.tip||(`<b>${esc(it.label)}</b><br>${nf(it.value)}`))}">
+      <rect x="0" y="${y}" width="${w}" height="${rowH-2}" fill="transparent"/>
+      <text x="${lw-8}" y="${y+15}" text-anchor="end" font-size="12.5" fill="${ink2}">${esc(lab)}</text>
+      ${bw?`<path d="M${lw} ${y+5}h${bw-4}a4 4 0 0 1 4 4v4a4 4 0 0 1-4 4h-${bw-4}z" fill="${it.color||c}"/>`:""}
+      <text x="${lw+bw+6}" y="${y+15}" font-size="12" font-weight="600" fill="${ink}">${esc(it.display||nf(it.value))}</text></g>`);
+    y+=rowH;
+  });
+  el.innerHTML=`<svg viewBox="0 0 ${w} ${y+4}" role="img" aria-label="${esc(opt.aria||"")}">${out.join("")}</svg>`;
+}
+
+/* Colonnes empilées par gravité, par mois */
+function monthChart(el, fiches){
+  const {from,months}=periodRange(); const now=new Date();
+  let start = from ? new Date(from.getFullYear(),from.getMonth(),1) : (fiches.length? new Date(Math.min(...fiches.map(f=>f.date))) : now);
+  start=new Date(start.getFullYear(),start.getMonth(),1);
+  const keys=[]; for(let d=new Date(start); d<=now; d.setMonth(d.getMonth()+1)) keys.push(`${d.getFullYear()}-${d.getMonth()}`);
+  const data=keys.map(k=>({k, g:[0,0,0,0]}));
+  const idx=new Map(keys.map((k,i)=>[k,i]));
+  fiches.forEach(f=>{ const i=idx.get(`${f.date.getFullYear()}-${f.date.getMonth()}`); if(i!=null && f.grav) data[i].g[f.grav-1]++; });
+  const w=W(el), h=220, ml=30, mb=26, mt=8, pw=w-ml-6, ph=h-mb-mt;
+  const tot=data.map(d=>d.g.reduce((a,b)=>a+b,0));
+  const {max,ticks:tk}=ticks(Math.max(...tot,1));
+  const band=pw/data.length, bw=Math.max(6,Math.min(34,band*0.62));
+  const cols=["--q1","--q2","--q3","--q4"].map(css), grid=css("--grid"), muted=css("--muted"), ink=css("--ink"), surf=css("--surface");
+  let out=tk.map(v=>{ const y=mt+ph-ph*v/max; return `<line x1="${ml}" x2="${w-6}" y1="${y}" y2="${y}" stroke="${grid}"/><text x="${ml-6}" y="${y+4}" text-anchor="end" font-size="11" fill="${muted}">${v}</text>`; }).join("");
+  const every = data.length>14 ? 3 : data.length>8 ? 2 : 1;
+  data.forEach((d,i)=>{
+    const x=ml+band*i+(band-bw)/2; let y=mt+ph; const [yy,mm]=d.k.split("-").map(Number);
+    const lab=`${MOIS[mm]} ${yy}`;
+    const segs=[];
+    d.g.forEach((n,gi)=>{ if(!n) return; const hh=ph*n/max; y-=hh; segs.push({y,hh,gi}); });
+    segs.forEach((s,si)=>{ const top=si===segs.length-1; const r=top?Math.min(4,s.hh/2,bw/2):0;
+      out+= top ? `<path d="M${x} ${s.y+s.hh}V${s.y+r}a${r} ${r} 0 0 1 ${r}-${r}h${bw-2*r}a${r} ${r} 0 0 1 ${r} ${r}V${s.y+s.hh}z" fill="${cols[s.gi]}" stroke="${surf}" stroke-width="1"/>`
+                : `<rect x="${x}" y="${s.y}" width="${bw}" height="${s.hh}" fill="${cols[s.gi]}" stroke="${surf}" stroke-width="1"/>`; });
+    const t=tot[i];
+    out+=`<rect x="${ml+band*i}" y="${mt}" width="${band}" height="${ph}" fill="transparent" data-tip="<b>${lab}</b> · ${t} fiche${t>1?"s":""}<br>${d.g.map((n,gi)=>`${GRAV[gi]} : ${n}`).join("<br>")}"/>`;
+    if(i%every===0 || i===data.length-1) out+=`<text x="${x+bw/2}" y="${h-8}" text-anchor="middle" font-size="11" fill="${i===data.length-1?ink:muted}">${MOIS[mm]}${mm===0||i===0?" "+String(yy).slice(2):""}</text>`;
+  });
+  out+=`<line x1="${ml}" x2="${w-6}" y1="${mt+ph}" y2="${mt+ph}" stroke="${muted}" stroke-opacity=".6"/>`;
+  el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Signalements par mois et par gravité">${out}</svg>`;
+  $("#lg-grav").innerHTML=GRAV.map((g,i)=>`<span><i style="background:var(--q${i+1})"></i>${i+1} · ${g}</span>`).join("");
+}
+
+/* Matrice famille × gravité */
+function heat(el, fiches){
+  const fams=[...new Set(fiches.map(f=>f.famille))];
+  const cnt=fams.map(fa=>[1,2,3,4].map(g=>fiches.filter(f=>f.famille===fa&&f.grav===g).length));
+  const order=fams.map((f,i)=>({f,c:cnt[i],t:cnt[i].reduce((a,b)=>a+b,0)})).sort((a,b)=>b.t-a.t);
+  if(!order.length){ el.innerHTML=`<div class="empty">Aucune donnée sur la période.</div>`; return; }
+  const w=W(el), lw=Math.min(170,Math.round(w*0.4)), cw=(w-lw-4)/4, ch=30, top=22;
+  const max=Math.max(...order.flatMap(o=>o.c),1);
+  const ramp=["--h0","--q1","--q2","--q3","--q4"].map(css), ink=css("--ink"), muted=css("--muted"), surf=css("--surface");
+  let out=GRAV.map((g,i)=>`<text x="${lw+cw*i+cw/2}" y="14" text-anchor="middle" font-size="11" fill="${muted}">${i+1} · ${g}</text>`).join("");
+  order.forEach((o,r)=>{ const y=top+r*ch;
+    out+=`<text x="${lw-8}" y="${y+ch/2+4}" text-anchor="end" font-size="12.5" fill="${css("--ink-2")}">${esc(o.f)}</text>`;
+    o.c.forEach((n,i)=>{ const step = n===0?0:Math.min(4,1+Math.floor(3.999*n/max)); const fill=ramp[step];
+      const txt = step>=3 ? surf : ink;
+      out+=`<g data-tip="<b>${esc(o.f)}</b> · gravité ${GRAV[i].toLowerCase()}<br>${n} fiche${n>1?"s":""}"><rect x="${lw+cw*i+1}" y="${y+1}" width="${cw-2}" height="${ch-2}" rx="4" fill="${fill}"/>${n?`<text x="${lw+cw*i+cw/2}" y="${y+ch/2+4}" text-anchor="middle" font-size="12" font-weight="600" fill="${txt}">${n}</text>`:""}</g>`; });
+  });
+  el.innerHTML=`<svg viewBox="0 0 ${w} ${top+order.length*ch+4}" role="img" aria-label="Fiches par famille et par gravité">${out}</svg>`;
+}
+
+/* ---------------- Rendu ---------------- */
+let selMarche=null;
+function render(){
+  const F=filtered(); const {from,to}=periodRange();
+  // période précédente de même longueur
+  let prev=null; if(from){ const len=to-from; const pf=new Date(from.getTime()-len); const first=Math.min(...N.fiches.map(f=>f.date)); if(first<=pf) prev=filtered(false).filter(f=>f.date>=pf && f.date<from); }
+
+  // KPI
+  const open=F.filter(f=>f.open), crit=open.filter(f=>f.grav===4);
+  const pec=F.map(f=>f.pecJ).filter(v=>v!=null), clo=F.map(f=>f.cloJ).filter(v=>v!=null);
+  const closed=F.filter(f=>!f.open), resolved=closed.filter(f=>/résolu/.test(f.statut)&&!/non résolu/.test(f.statut));
+  const pen=F.reduce((a,f)=>a+f.pen+f.ref,0);
+  const svcAct=new Set(F.filter(f=>f.service).map(f=>f.service.id)).size;
+  const mPec=median(pec);
+  const delta = prev ? F.length-prev.length : null;
+  const k=[
+    {k:"Signalements", v:nf(F.length), d: delta==null?($("#f-per").value==="all"?"sur toute la période":"pas encore d'historique comparable"): `<span class="tag ${delta>0?"up":"down"}">${delta>0?"▲":"▼"} ${delta>0?"+":""}${delta}</span> vs période précédente`},
+    {k:"Fiches ouvertes", v:nf(open.length), d: crit.length?`<span class="tag ko">● ${crit.length} critique${crit.length>1?"s":""}</span> en cours`:"aucune critique en cours"},
+    {k:"Prise en charge", v:nf(mPec,1)+"<small>j. ouvrés</small>", d: mPec==null?"–":`médiane · <span class="tag ${mPec<=ENGAGEMENT_JO?"ok":"ko"}">${mPec<=ENGAGEMENT_JO?"✓ engagement tenu":"✗ au-delà de "+ENGAGEMENT_JO+" j"}</span> · clôture ${nf(median(clo),0)} j`},
+    {k:"Fiches étayées", v: F.length? nf(100*F.filter(f=>f.etayee).length/F.length,0)+"<small>%</small>":"–", d:`corroborées par l'acheteur · ${F.filter(f=>f.preuve==="Étayée").length} étayées, ${F.filter(f=>f.preuve==="Partielle").length} partielles`},
+    {k:"Taux de résolution", v: closed.length? nf(100*resolved.length/closed.length,0)+"<small>%</small>":"–", d:`${resolved.length} résolues sur ${closed.length} closes`},
+    {k:"Pénalités et réfactions", v: eur(pen), d:`${F.filter(f=>f.pen||f.ref).length} fiches · ${svcAct}/${N.services.length||"?"} services ont signalé`}
+  ];
+  // Points d'attention (sur les filtres courants)
+  const today=new Date(), aNorm=F.filter(f=>!f.normalise).length, sansMail=open.filter(f=>!f.courriel).length;
+  const pecRetard=open.filter(f=>f.statut==="Nouveau" && SIG.joursOuvres(f.date,today)>ENGAGEMENT_JO).length;
+  const W=[["à normaliser",aNorm,"fiches sans marché du référentiel : à rattacher dans la page Normalisation"],
+           ["courriel non reçu",sansMail,"fiches ouvertes dont le courriel de transmission n'est pas coché « reçu »"],
+           ["prise en charge en retard",pecRetard,"fiches encore « Nouveau » au-delà de "+ENGAGEMENT_JO+" jours ouvrés"]];
+  $("#watch").innerHTML=`<span class="t">Points d'attention</span>`+W.map(([l,v,t])=>`<span class="w ${v?"on":""}" title="${esc(t)}"><b>${nf(v)}</b> ${l}</span>`).join("");
+  $("#kpis").innerHTML=k.map(x=>`<div class="kpi"><div class="k">${x.k}</div><div class="v">${x.v}</div><div class="d">${x.d}</div></div>`).join("");
+
+  monthChart($("#c-month"),F);
+
+  // Typologie
+  const byT=new Map(); F.forEach(f=>{ const key=f.famille+"|"+f.typoLib; byT.set(key,(byT.get(key)||0)+1); });
+  const famTot=new Map(); [...byT].forEach(([k,v])=>{ const fa=k.split("|")[0]; famTot.set(fa,(famTot.get(fa)||0)+v); });
+  const items=[...byT].map(([k,v])=>{ const [fa,l]=k.split("|"); return {group:fa,label:l,value:v}; })
+    .sort((a,b)=> famTot.get(b.group)-famTot.get(a.group) || a.group.localeCompare(b.group) || b.value-a.value);
+  hbars($("#c-typo"),items,{groups:true,labelW:230,aria:"Fiches par type de difficulté"});
+
+  // Marchés
+  const hasChorus = N.marches.some(m=>Number(m.Montant_commande_12m)>0);
+  const byM=new Map(); F.forEach(f=>{ const key=f.marche?f.marche.id:"x:"+f.cleSaisie; if(!byM.has(key)) byM.set(key,{m:f.marche,lib:f.marcheLib,list:[]}); byM.get(key).list.push(f); });
+  const rows=[...byM.values()].map(o=>{ const L=o.list; const ret=L.map(f=>f.retard).filter(v=>v!=null);
+    return {...o, n:L.length, score:L.reduce((a,f)=>a+(f.grav||1),0), open:L.filter(f=>f.open).length, pjN:L.filter(f=>f.etayee).length, crit:L.filter(f=>f.grav===4).length,
+      ret: ret.length? ret.reduce((a,b)=>a+b,0)/ret.length : null, ecart:L.reduce((a,f)=>a+(f.ecart||0),0), pen:L.reduce((a,f)=>a+f.pen+f.ref,0),
+      rate: o.m&&Number(o.m.Montant_commande_12m)>0 ? L.length/(Number(o.m.Montant_commande_12m)/1e5) : null }; })
+    .sort((a,b)=>b.score-a.score);
+  const maxS=Math.max(...rows.map(r=>r.score),1);
+  $("#t-marches").innerHTML = rows.length ? `<thead><tr><th>Marché</th><th>Score gravité</th><th>Fiches</th><th>Ouvertes</th><th>Critiques</th><th>Étayées</th><th>Retard moyen</th><th>Écart de prix</th><th>Pénalités</th>${hasChorus?"<th>Fiches / 100 k€</th>":""}</tr></thead><tbody>`+
+    rows.map(r=>`<tr class="row ${r.m&&selMarche===r.m.id?"sel":""}" data-m="${r.m?r.m.id:""}" tabindex="0"><td>${r.m&&r.m.Support?`<span class="badge">${esc(r.m.Support)}</span>`:""}${esc(r.lib)}${r.m?(r.m.Titulaire?`<br><span class="note">${esc(r.m.Titulaire)}</span>`:""):` <span class="pill norm" title="Saisie libre non rattachée au référentiel">à normaliser</span>`}</td>
+      <td><div class="bar-cell"><div class="minibar" style="width:${Math.round(90*r.score/maxS)}px"></div><b>${r.score}</b></div></td>
+      <td>${r.n}</td><td>${r.open}</td><td>${r.crit?`<span class="pill crit">● ${r.crit}</span>`:"0"}</td><td>${nf(100*r.pjN/r.n,0)} %</td>
+      <td>${r.ret==null?"–":nf(r.ret,0)+" j"}</td><td>${r.ecart?eur(r.ecart):"–"}</td><td>${r.pen?eur(r.pen):"–"}</td>${hasChorus?`<td>${r.rate==null?"–":nf(r.rate,1)}</td>`:""}</tr>`).join("")+"</tbody>"
+    : `<tbody><tr><td class="empty">Aucune fiche sur la période.</td></tr></tbody>`;
+  document.querySelectorAll("#t-marches tr.row").forEach(tr=>{ const go=()=>{ if(!tr.dataset.m) return; selMarche=+tr.dataset.m; $("#f-mar").value=tr.dataset.m; renderDossier(); document.querySelectorAll("#t-marches tr.row").forEach(x=>x.classList.toggle("sel",x===tr)); $("#dossier").scrollIntoView({behavior:"smooth",block:"start"}); };
+    tr.onclick=go; tr.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } }; });
+
+  heat($("#c-heat"),F);
+
+  const cnt=(arr,key)=>{ const m=new Map(); arr.forEach(f=>{ const v=f[key]; if(v) m.set(v,(m.get(v)||0)+1); }); return [...m].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value); };
+  hbars($("#c-att"),cnt(F,"attendu"),{labelW:130,aria:"Attentes des services"});
+  hbars($("#c-iss"),cnt(closed,"issue"),{labelW:170,aria:"Issues des fiches closes"});
+
+  // Adéquation
+  const ad=F.filter(f=>f.nature==="Adéquation");
+  const byMA=new Map(); ad.forEach(f=>{ const k=f.marche?f.marche.Intitule:f.marcheLib+" (à normaliser)"; if(!byMA.has(k)) byMA.set(k,{n:0,hm:0}); const o=byMA.get(k); o.n++; if(f.contournement==="Achat hors marché") o.hm++; });
+  hbars($("#c-adeq"),[...byMA].map(([label,o])=>({label,value:o.n,display:`${o.n}${o.hm?` · ${o.hm} hors marché`:""}`,tip:`<b>${esc(label)}</b><br>${o.n} fiche${o.n>1?"s":""} d'adéquation<br>dont ${o.hm} achat${o.hm>1?"s":""} hors marché`})).sort((a,b)=>b.value-a.value),{labelW:220,aria:"Fiches d'adéquation par marché"});
+
+  // Participation
+  const bySvc=new Map(N.services.map(s=>[s.id,0])); F.forEach(f=>{ if(f.service) bySvc.set(f.service.id,(bySvc.get(f.service.id)||0)+1); });
+  const sieF=$("#f-sie").value, svcList=N.services.filter(s=>!sieF||s.siege===sieF);
+  const sieTot=new Map(); svcList.forEach(s=>sieTot.set(s.siege,(sieTot.get(s.siege)||0)+(bySvc.get(s.id)||0)));
+  hbars($("#c-svc"),svcList.map(s=>({group:`${s.siege} · ${sieTot.get(s.siege)} fiche${sieTot.get(s.siege)>1?"s":""}`,sg:s.siege,label:s.Nom===s.siege?s.Nom+" (siège)":s.Nom,value:bySvc.get(s.id)||0,display:(bySvc.get(s.id)||0)?undefined:"aucune fiche"}))
+    .sort((a,b)=>sieTot.get(b.sg)-sieTot.get(a.sg)||a.sg.localeCompare(b.sg,"fr")||b.value-a.value),{groups:true,labelW:210,aria:"Fiches par siège et par service"});
+
+  renderDossier();
+  const per=$("#f-per").selectedOptions[0].text.toLowerCase();
+  $("#foot").textContent = `${F.length} fiches sur ${per} (fiches annulées exclues). Délais en jours ouvrés (week-ends exclus, jours fériés non déduits).`;
+}
+
+function renderDossier(){
+  const sel=$("#f-mar"); if(!sel.options.length || !sel.value){ $("#d-title").textContent="Dossier marché"; $("#d-sub").textContent="Aucun marché normalisé : rattachez les saisies dans la page Normalisation."; ["#d-kpi","#d-list","#d-revue","#d-typo","#d-svc"].forEach(x=>$(x).innerHTML=""); return; }
+  if(selMarche==null) selMarche=+sel.value;
+  const m=N.marches.find(x=>x.id===selMarche); if(!m) return;
+  const L=filtered().filter(f=>f.marche&&f.marche.id===m.id).sort((a,b)=>b.date-a.date);
+  $("#d-title").textContent="Dossier marché · "+m.Intitule;
+  $("#d-sub").textContent=[m.Support,m.Reference,m.Titulaire&&("Titulaire : "+m.Titulaire)].filter(Boolean).join(" · ");
+  const ret=L.map(f=>f.retard).filter(v=>v!=null), gm=L.length? L.reduce((a,f)=>a+(f.grav||0),0)/L.length : null;
+  const k=[["Fiches",nf(L.length)],["Gravité moyenne",gm==null?"–":nf(gm,1)+" / 4"],["Ouvertes",nf(L.filter(f=>f.open).length)],
+    ["Retard moyen",ret.length?nf(ret.reduce((a,b)=>a+b,0)/ret.length,0)+" j":"–"],["Écart de prix",eur(L.reduce((a,f)=>a+(f.ecart||0),0))],
+    ["Pénalités et réfactions",eur(L.reduce((a,f)=>a+f.pen+f.ref,0))]];
+  $("#d-kpi").innerHTML=k.map(([a,b])=>`<div><b>${b}</b><span>${a}</span></div>`).join("");
+  const cnt=key=>{ const mm=new Map(); L.forEach(f=>{ const v=key(f); if(v) mm.set(v,(mm.get(v)||0)+1); }); return [...mm].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value); };
+  hbars($("#d-typo"),cnt(f=>f.typoLib),{labelW:210,aria:"Types de difficulté du marché"});
+  const dS=new Map(); L.forEach(f=>{ if(!f.service) return; const k=f.siege+"|"+f.service.Nom; dS.set(k,(dS.get(k)||0)+1); });
+  const dT=new Map(); [...dS].forEach(([k,v])=>{ const g=k.split("|")[0]; dT.set(g,(dT.get(g)||0)+v); });
+  hbars($("#d-svc"),[...dS].map(([k,v])=>{ const [g,l]=k.split("|"); return {group:g,label:l,value:v}; }).sort((a,b)=>dT.get(b.group)-dT.get(a.group)||b.value-a.value),{groups:true,labelW:180,aria:"Services concernés par siège"});
+  $("#d-list").innerHTML = L.length ? L.slice(0,6).map(f=>`<div class="it ${f.grav===4?"g4":""}"><b>${esc(f.num)}</b> · ${esc(f.typoLib)}<small>${f.date.toLocaleDateString("fr-FR")} · ${esc(f.service?f.service.Nom:"")} · gravité ${f.grav||"–"} · ${esc(f.statut)}</small></div>`).join("") : `<div class="empty">Aucune fiche sur la période.</div>`;
+  // Points pour la revue de contrat, déduits des données
+  const pts=[];
+  const top=cnt(f=>f.typoLib)[0]; if(top && L.length) pts.push(`Difficulté dominante : <b>${esc(top.label)}</b> (${top.value} fiche${top.value>1?"s":""} sur ${L.length}).`);
+  const rec=new Map(); L.forEach(f=>{ const k=f.typoLib; const arr=rec.get(k)||[]; arr.push(f.date); rec.set(k,arr); });
+  [...rec].forEach(([k,ds])=>{ ds.sort((a,b)=>a-b); for(let i=2;i<ds.length;i++){ if((ds[i]-ds[i-2])/DAY<=90){ if(pts.filter(x=>x.startsWith("Récurrence")).length<3) pts.push(`Récurrence : <b>${esc(k)}</b>, 3 fiches en moins de 90 jours.`); break; } } });
+  if(ret.length) pts.push(`Retards cumulés : <b>${nf(ret.reduce((a,b)=>a+b,0))} jours</b> sur ${ret.length} fiche${ret.length>1?"s":""} ; pénalités appliquées : ${eur(L.reduce((a,f)=>a+f.pen,0))}.`);
+  const ec=L.reduce((a,f)=>a+(f.ecart||0),0); if(ec>0) pts.push(`Écart de prix constaté : <b>${eur(ec)}</b>, à rapprocher du BPU.`);
+  const hm=L.filter(f=>f.contournement==="Achat hors marché").length; if(hm) pts.push(`<b>${hm} achat${hm>1?"s":""} hors marché</b> déclaré${hm>1?"s":""} faute de couverture du besoin.`);
+  const pjR=L.length?L.filter(f=>f.etayee).length/L.length:0; if(L.length) pts.push(`Fiches étayées par des pièces : <b>${nf(100*pjR,0)} %</b>${pjR<0.6?" ; à compléter avant de saisir le titulaire.":"."}`);
+  const svcN=new Set(L.filter(f=>f.service).map(f=>f.service.id)).size, sgN=new Set(L.map(f=>f.siege)).size; if(svcN>=3) pts.push(`Difficultés signalées par <b>${svcN} services</b> relevant de ${sgN} siège${sgN>1?"s":""} : problème du titulaire plutôt que d'un site.`);
+  $("#d-revue").innerHTML = pts.length ? pts.map(p=>`<div class="it">${p}</div>`).join("") : `<div class="empty">Rien de notable sur la période.</div>`;
+}
+
+function fillMarches(){
+  const counts=new Map(); N.fiches.forEach(f=>{ if(f.marche) counts.set(f.marche.id,(counts.get(f.marche.id)||0)+1); });
+  const ms=N.marches.filter(m=>m.Intitule && !refId(m.Fusionne_dans) && (m.Actif!==false || counts.get(m.id))).sort((a,b)=>(counts.get(b.id)||0)-(counts.get(a.id)||0));
+  $("#f-mar").innerHTML=ms.length? ms.map(m=>`<option value="${m.id}">${esc(m.Intitule)}</option>`).join("") : `<option value="">Aucun marché normalisé</option>`;
+  if(ms.length && (selMarche==null || !ms.some(m=>m.id===selMarche))) selMarche=ms[0].id;
+}
+
+async function load(){
+  RAW=await fetchGrist(); $("#banner").innerHTML="";
+  N=normalize(RAW);
+}
+
+let rT; window.addEventListener("resize",()=>{ clearTimeout(rT); rT=setTimeout(()=>N&&render(),150); });
+if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>N&&render());
+new MutationObserver(()=>N&&render()).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+["#f-per","#f-sup","#f-svc","#f-pj"].forEach(s=>$(s).addEventListener("change",()=>{ saveFilters(); render(); }));
+$("#f-sie").addEventListener("change",()=>{ fillSvc(); saveFilters(); render(); });
+$("#f-mar").addEventListener("change",e=>{ selMarche=+e.target.value; render(); });
+$("#refresh").onclick=async()=>{ try{ await load(); fillMarches(); render(); }catch(e){ $("#banner").innerHTML=`<div class="banner err">${esc(e.message)}</div>`; } };
+
+(async function(){
+  try{ await SIG.connect(); }
+  catch(e){ const [t,h]=SIG.messageConnexion(e); SIG.fatal($("#root"),t,h); return; }
+  try{ await load(); }
+  catch(e){ SIG.fatal($("#root"),"Lecture du document impossible",esc(e.message||e)); return; }
+  fillFilters(); fillMarches(); render();
+})();
+})();
+</script>
+</body>
+</html>

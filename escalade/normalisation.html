@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Normalisation des marchés</title>
+<!--
+  Widget Grist « Normalisation des marchés » — réservé aux acheteurs du pôle.
+  - Rattache les fiches saisies librement par les services à un marché du référentiel (en lot),
+    crée un marché normalisé à partir d'une saisie, entretient le référentiel et fusionne les doublons.
+  - Écrit dans Fiches.Marche et dans la table Marches ; ne modifie jamais ce que le service a saisi
+    (Marche_saisi, Marche_saisi_ref, Marche_saisi_titulaire).
+  - Aucune donnée dans ce fichier. Niveau d'accès du widget : « Accès complet au document ».
+-->
+<style>
+/* --- commun.css (inclus) --- */
+/* =====================================================================
+ *  commun.css — identité visuelle partagée des widgets « Signalements »
+ *  Clair / sombre via variables CSS (prefers-color-scheme + data-theme).
+ * ===================================================================== */
+:root{
+  --bg:#f6f6f9; --surface:#ffffff; --surface-2:#f0f0f7; --line:#dddde6; --line-strong:#b9b9c9; --grid:#ececf2;
+  --ink:#161616; --ink-2:#3a3a4a; --muted:#666677;
+  --accent:#000091; --accent-ink:#ffffff; --accent-soft:#e3e3fd; --focus:#0a76f6;
+  --ok:#18753c; --ok-soft:#dffbe7; --warn:#b77d00; --warn-soft:#fdf3dc; --crit:#ce0500; --crit-soft:#fde4e4;
+  --g1:#1f8d49; --g1s:#e4f6ea; --g2:#b7791f; --g2s:#fdf3dc; --g3:#d64d00; --g3s:#fde8dc; --g4:#ce0500; --g4s:#fde4e4;
+  --radius:10px; --shadow:0 1px 2px rgba(0,0,30,.06),0 4px 14px rgba(0,0,60,.06);
+  --font:Marianne,"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121218; --surface:#1c1c25; --surface-2:#252532; --line:#33334a; --line-strong:#4a4a66; --grid:#2a2a36;
+    --ink:#ededf5; --ink-2:#c8c8d8; --muted:#9a9ab0;
+    --accent:#8585f6; --accent-ink:#0d0d26; --accent-soft:#2a2a55; --focus:#6ea8ff;
+    --ok:#4fd187; --ok-soft:#163a25; --warn:#f0c060; --warn-soft:#3a2f12; --crit:#ff6b66; --crit-soft:#421616;
+    --g1:#4fd187; --g1s:#163a25; --g2:#f0c060; --g2s:#3a2f12; --g3:#ff8c4a; --g3s:#40220f; --g4:#ff6b66; --g4s:#421616;
+    --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121218; --surface:#1c1c25; --surface-2:#252532; --line:#33334a; --line-strong:#4a4a66; --grid:#2a2a36;
+  --ink:#ededf5; --ink-2:#c8c8d8; --muted:#9a9ab0;
+  --accent:#8585f6; --accent-ink:#0d0d26; --accent-soft:#2a2a55; --focus:#6ea8ff;
+  --ok:#4fd187; --ok-soft:#163a25; --warn:#f0c060; --warn-soft:#3a2f12; --crit:#ff6b66; --crit-soft:#421616;
+  --g1:#4fd187; --g1s:#163a25; --g2:#f0c060; --g2s:#3a2f12; --g3:#ff8c4a; --g3s:#40220f; --g4:#ff6b66; --g4s:#421616;
+  --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+h1{font-size:19px;line-height:1.25;margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:17px;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.brand{display:flex;gap:12px;align-items:center}
+.flag{flex:none;width:6px;height:38px;border-radius:3px;background:linear-gradient(var(--accent) 0 33%,var(--surface) 33% 66%,#e1000f 66%);border:1px solid var(--line)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px}
+.banner{border-radius:var(--radius);padding:10px 14px;font-size:13.5px;margin-bottom:12px;border:1px solid var(--line);background:var(--surface)}
+.banner.warn{border-color:var(--warn);background:var(--warn-soft)}
+.banner.err{border-color:var(--crit);background:var(--crit-soft)}
+.banner.ok{border-color:var(--ok);background:var(--ok-soft)}
+.btn{font:inherit;font-weight:600;border-radius:8px;padding:9px 16px;cursor:pointer;border:1.5px solid var(--accent);background:transparent;color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.link{background:none;border:0;color:var(--accent);font:inherit;font-size:13px;cursor:pointer;text-decoration:underline;padding:0}
+input[type=text],input[type=date],input[type=number],input[type=search],input[type=email],textarea,select{
+  width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:4px;background:var(--surface-2);color:var(--ink-2);margin-right:6px;vertical-align:1px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.empty{text-align:center;color:var(--muted);padding:24px 10px;font-size:14px}
+.muted{color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hidden{display:none!important}
+.fatal{max-width:560px;margin:40px auto;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 24px}
+.fatal-ico{width:42px;height:42px;border-radius:50%;margin:0 auto 10px;display:grid;place-items:center;font-weight:800;font-size:22px;background:var(--warn-soft);color:var(--warn)}
+.fatal div{color:var(--ink-2);font-size:14px}
+.loading{text-align:center;color:var(--muted);padding:40px 10px}
+
+</style>
+<style>
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+header.top{display:flex;gap:12px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+@media (max-width:720px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.kpi .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kpi .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi .v.alert{color:var(--warn)}
+.tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:999px;width:max-content;max-width:100%;margin-bottom:12px}
+.tab{border:0;background:transparent;color:var(--ink-2);padding:7px 14px;border-radius:999px;font:inherit;font-size:14px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--accent);font-weight:600;box-shadow:var(--shadow)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar input[type=search]{max-width:320px}
+.toolbar label{font-size:13px;display:flex;gap:6px;align-items:center;color:var(--ink-2)}
+.grp{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.grp-h{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.grp-h b{font-size:15px}
+.grp .meta{font-size:12.5px;color:var(--muted);margin-top:2px}
+.sugg{display:flex;flex-direction:column;gap:6px;margin:10px 0 6px}
+.sug{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13.5px}
+.sug small{display:block;color:var(--muted);font-size:12px}
+.score{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.score.hi{background:var(--ok-soft);color:var(--ok)}
+.score.mid{background:var(--warn-soft);color:var(--warn)}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.combo{position:relative;flex:1;min-width:220px;max-width:420px}
+.list{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,40,.12);max-height:240px;overflow:auto;display:none}
+.list.open{display:block}
+.opt-row{padding:8px 11px;cursor:pointer;border-bottom:1px solid var(--line);font-size:13.5px}
+.opt-row:hover,.opt-row.act{background:var(--accent-soft)}
+.opt-row small{display:block;color:var(--muted);font-size:12px}
+details.fiches{margin-top:8px;font-size:13px}
+details.fiches summary{cursor:pointer;color:var(--ink-2)}
+.fl{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-direction:column;gap:4px}
+.fl label{display:flex;gap:8px;align-items:baseline}
+.fl small{color:var(--muted)}
+.form{background:var(--surface-2);border-radius:10px;padding:12px;margin-top:10px}
+.form .g{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+.form .g2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+@media (max-width:640px){.form .g,.form .g2{grid-template-columns:1fr}}
+.form label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.form textarea{min-height:56px}
+.check{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--ink-2)}
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--grid);vertical-align:top}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.off td{color:var(--muted)}
+.dup{background:var(--warn-soft);border:1px solid var(--warn);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.dup h3{margin:0 0 6px;font-size:14px}
+.pair{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid color-mix(in srgb,var(--warn) 30%,transparent);font-size:13.5px}
+.pair:first-of-type{border-top:0}
+.pair small{display:block;color:var(--ink-2);font-size:12px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:9px 16px;border-radius:999px;font-size:13.5px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="flag" aria-hidden="true"></div>
+      <div><h1>Normalisation des marchés</h1>
+        <div class="sub" id="sub">Rattacher les saisies des services au référentiel · fusionner les doublons</div></div>
+    </div>
+    <button class="btn small" id="refresh" type="button">Actualiser</button>
+  </header>
+  <div id="banner"></div>
+  <main id="app"><div class="loading">Chargement…</div></main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* --- commun.js (inclus) --- */
+/* =====================================================================
+ *  commun.js — utilitaires partagés par les widgets Grist
+ *  « Signalements – marchés mutualisés » (pôle achats DPFAC – DIR-SG Grand Ouest)
+ *
+ *  Aucune donnée ici : uniquement du code. Les données vivent dans le document Grist.
+ * ===================================================================== */
+(function (global) {
+  "use strict";
+
+  /* ------------------------------------------------------------------ *
+   *  Paramétrage technique                                              *
+   * ------------------------------------------------------------------ */
+  // Instances Grist essayées pour charger l'API des widgets, après l'origine de la page hôte.
+  const ORIGINES_GRIST = ["https://grist.numerique.gouv.fr", "https://docs.getgrist.com"];
+  const TABLES = { params: "Parametres", services: "Services", users: "Utilisateurs", marches: "Marches",
+                   typos: "Typologies", fiches: "Fiches" };
+
+  /* ------------------------------------------------------------------ *
+   *  Utilitaires                                                        *
+   * ------------------------------------------------------------------ */
+  const $ = (s, el) => (el || document).querySelector(s);
+  const $$ = (s, el) => [...(el || document).querySelectorAll(s)];
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // fetchTable renvoie des colonnes {id:[…], Col:[…]} → tableau d'objets
+  const toRows = t => {
+    if (!t || !t.id) return [];
+    const keys = Object.keys(t).filter(k => !k.startsWith("gristHelper_"));
+    return t.id.map((_, i) => { const o = {}; keys.forEach(k => o[k] = t[k][i]); return o; });
+  };
+  // Référence : nombre, ["R", id], ou texte (colonne mal typée)
+  const refId = v => Array.isArray(v) ? v[1] : v;
+  // Dates Grist : secondes depuis 1970 (UTC), ou chaîne ISO
+  const toDate = v => {
+    if (v == null || v === "" || v === 0) return null;
+    const d = typeof v === "number" ? new Date(v * 1000) : new Date(v);
+    return isNaN(d) ? null : d;
+  };
+  const fmtDate = v => { const d = toDate(v); return d ? d.toLocaleDateString("fr-FR", { timeZone: "UTC" }) : ""; };
+  const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+  const isoToEpoch = iso => { const [y, m, d] = String(iso).split("-").map(Number); return Date.UTC(y, m - 1, d) / 1000; };
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error("délai dépassé")), ms))]);
+  // Texte sans accents, minuscules, ponctuation remplacée par des espaces
+  const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ").trim();
+  const listVal = v => Array.isArray(v) ? v.filter((x, i) => !(i === 0 && x === "L")) : (v ? String(v).split(/\s*,\s*/) : []);
+  // Jours ouvrés (lun.-ven.) après a jusqu'à b inclus, en UTC — même règle que les formules Grist
+  function joursOuvres(a, b) {
+    if (!a || !b) return null;
+    let n = 0; const d = new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate()));
+    const e = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
+    while (d.getTime() < e) { d.setUTCDate(d.getUTCDate() + 1); const w = d.getUTCDay(); if (w !== 0 && w !== 6) n++; }
+    return n;
+  }
+  // Stockage local protégé (la page doit fonctionner sans)
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* idem */ } }
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Connexion Grist                                                    *
+   * ------------------------------------------------------------------ */
+  function loadScript(src) {
+    return new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = src; s.onload = res; s.onerror = () => rej(new Error("chargement impossible : " + src));
+      document.head.appendChild(s);
+    });
+  }
+  /** Renvoie "grist" ou lève une erreur { code: "horsgrist" | "api" | "acces" }. */
+  async function connect() {
+    if (window === window.parent) throw Object.assign(new Error("hors Grist"), { code: "horsgrist" });
+    const origines = [];
+    try { if (document.referrer) origines.push(new URL(document.referrer).origin); } catch (e) { /* referrer absent */ }
+    ORIGINES_GRIST.forEach(o => { if (!origines.includes(o)) origines.push(o); });
+    for (const o of origines) {
+      try { await loadScript(o + "/grist-plugin-api.js"); if (window.grist) break; } catch (e) { /* origine suivante */ }
+    }
+    if (!window.grist) throw Object.assign(new Error("API Grist introuvable"), { code: "api" });
+    grist.ready({ requiredAccess: "full" });
+    try { await withTimeout(grist.docApi.listTables(), 5000); }
+    catch (e) { throw Object.assign(new Error("accès refusé"), { code: "acces" }); }
+    return "grist";
+  }
+
+  async function fetchRows(table) {
+    try { return toRows(await grist.docApi.fetchTable(table)); } catch (e) { return null; }
+  }
+
+  /** Métadonnées : types, choix et options des colonnes, par table. */
+  async function loadMeta() {
+    const T = toRows(await grist.docApi.fetchTable("_grist_Tables"));
+    const C = toRows(await grist.docApi.fetchTable("_grist_Tables_column"));
+    const byId = {}; T.forEach(t => byId[t.id] = t.tableId);
+    const meta = {};
+    C.forEach(c => {
+      const t = byId[c.parentId]; if (!t) return;
+      let o = {}; try { o = c.widgetOptions ? JSON.parse(c.widgetOptions) : {}; } catch (e) { o = {}; }
+      (meta[t] = meta[t] || {})[c.colId] = { type: c.type, choices: o.choices || [], options: o, label: c.label, ref: c.id };
+    });
+    return meta;
+  }
+  const colType = (meta, t, c) => meta && meta[t] && meta[t][c] ? meta[t][c].type : undefined;
+  /** Choix d'une colonne Choice / ChoiceList, lus dans Grist. */
+  const choices = (meta, t, c) => (meta && meta[t] && meta[t][c] && meta[t][c].choices) || [];
+
+  /** Encode une valeur selon le type réel de la colonne (document éventuellement mal typé).
+   *  Renvoie undefined si la colonne n'existe pas (on ne l'écrit pas), null si valeur vide. */
+  function encode(meta, table, col, val, kind) {
+    const known = meta && meta[table];
+    const t = colType(meta, table, col);
+    if (known && t === undefined) return undefined;
+    if (val === "" || val == null || (Array.isArray(val) && !val.length)) return null;
+    switch (kind) {
+      case "ref": return t && t.startsWith("Ref:") ? val.id : val.label;
+      case "date": return (!t || t === "Date" || t.startsWith("DateTime")) ? isoToEpoch(val) : val;
+      case "list": return (!t || t === "ChoiceList") ? ["L"].concat(val) : val.join(", ");
+      case "num": {
+        const n = Number(String(val).replace(/\s/g, "").replace(",", ".")); if (isNaN(n)) return null;
+        return (t === "Text" || t === "Any") ? String(n) : n;
+      }
+      case "bool": return (t === "Text") ? (val ? "Oui" : "Non") : !!val;
+      default: return val;
+    }
+  }
+
+  /** Paramètres (table Parametres : Cle → Valeur). */
+  async function loadParams() {
+    const rows = await fetchRows(TABLES.params) || [];
+    const p = {}; rows.forEach(r => { if (r.Cle) p[String(r.Cle).trim()] = r.Valeur == null ? "" : String(r.Valeur).trim(); });
+    return p;
+  }
+
+  /** Nom du siège d'un service (Siege vide → le service est lui-même un siège). */
+  function siegeOf(services) {
+    const byId = new Map(services.map(s => [s.id, s]));
+    return s => {
+      if (!s) return "Non rattaché";
+      const v = refId(s.Siege);
+      if (v == null || v === "" || v === 0) return s.Nom;
+      if (typeof v === "number") { const h = byId.get(v); return h ? h.Nom : s.Nom; }
+      return String(v);
+    };
+  }
+
+  /** Écran bloquant (pas de repli sur des données codées : tout vient de Grist). */
+  function fatal(el, titre, html) {
+    el.innerHTML = `<div class="fatal" role="alert"><div class="fatal-ico" aria-hidden="true">!</div>
+      <h2>${esc(titre)}</h2><div>${html}</div></div>`;
+  }
+  function messageConnexion(err) {
+    if (err && err.code === "horsgrist") return ["Ouvrez ce widget dans Grist",
+      "Cette page est un widget personnalisé : elle s'affiche dans le document Grist du pôle achats (<b>grist.numerique.gouv.fr</b>). Elle ne contient aucune donnée par elle-même."];
+    if (err && err.code === "acces") return ["Accès au document à autoriser",
+      "Le widget n'a pas accès au document. Dans le panneau de droite du widget, réglez le niveau d'accès sur <b>Accès complet au document</b>."];
+    return ["Connexion à Grist impossible", "L'API des widgets Grist n'a pas pu être chargée. Rechargez la page ; si le problème persiste, contactez le pôle achats."];
+  }
+
+  global.SIG = { TABLES, $, $$, esc, toRows, refId, toDate, fmtDate, todayISO, isoToEpoch, withTimeout, norm, listVal,
+    joursOuvres, store, connect, fetchRows, loadMeta, colType, choices, encode, loadParams, siegeOf, fatal, messageConnexion };
+})(window);
+
+</script>
+<script>
+(function(){
+"use strict";
+const { $, $$, esc, refId, fmtDate, norm, connect, fetchRows, loadMeta, choices, loadParams, fatal, messageConnexion, TABLES } = SIG;
+
+/* ------------------------------------------------------------------ *
+ *  Paramétrage                                                        *
+ * ------------------------------------------------------------------ */
+const MOTS_VIDES = new Set(["de", "des", "du", "la", "le", "les", "et", "a", "au", "aux", "d", "l", "en", "pour", "sur", "marche", "marches"]);
+const SEUIL_PROBABLE = 0.55, SEUIL_DOUBLON = 0.6;
+
+/* ------------------------------------------------------------------ *
+ *  État                                                               *
+ * ------------------------------------------------------------------ */
+let META = null, FICHES = [], MARCHES = [], SERVICES = new Map(), TAB = "rattacher";
+let OPEN = new Set();   // groupes dont le formulaire de création est ouvert
+
+/* ------------------------------------------------------------------ *
+ *  Similarité saisie ↔ marché                                         *
+ * ------------------------------------------------------------------ */
+const mots = s => norm(s).split(" ").filter(w => w && !MOTS_VIDES.has(w));
+const compact = s => norm(s).replace(/ /g, "");
+const motProche = (a, b) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a)));
+function score(saisie, m) {
+  const alias = String(m.Alias || "").split(/\r?\n/).map(norm).filter(Boolean);
+  if (saisie.objet && alias.includes(norm(saisie.objet))) return 1;
+  let s = 0;
+  const r1 = compact(saisie.ref), r2 = compact(m.Reference);
+  if (r1 && r2 && (r1 === r2 || (r1.length >= 5 && (r2.includes(r1) || r1.includes(r2))))) s += 0.6;
+  const t1 = norm(saisie.tit), t2 = norm(m.Titulaire);
+  if (t1 && t2 && (t1 === t2 || t1.includes(t2) || t2.includes(t1))) s += 0.35;
+  const ws = mots(saisie.objet), wm = mots([m.Intitule, m.Segment, m.Alias].join(" "));
+  if (ws.length) s += 0.65 * ws.filter(w => wm.some(x => motProche(w, x))).length / ws.length;
+  return Math.min(1, s);
+}
+function suggestions(saisie, n) {
+  return MARCHES.filter(m => m.Actif !== false && !refId(m.Fusionne_dans))
+    .map(m => ({ m, s: score(saisie, m) })).filter(x => x.s >= 0.2).sort((a, b) => b.s - a.s).slice(0, n || 3);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Données                                                            *
+ * ------------------------------------------------------------------ */
+async function load() {
+  META = await loadMeta();
+  if (!META[TABLES.fiches] || !META[TABLES.marches]) throw Object.assign(new Error(), { install: true });
+  const [fi, ma, sv] = await Promise.all([fetchRows(TABLES.fiches), fetchRows(TABLES.marches), fetchRows(TABLES.services)]);
+  FICHES = fi || []; MARCHES = ma || []; SERVICES = new Map((sv || []).map(s => [s.id, s]));
+}
+const aNormaliser = () => FICHES.filter(f => !refId(f.Marche) && f.Statut !== "Annulé");
+/** Regroupe les fiches non rattachées par saisie (texte normalisé + référence). */
+function groupes() {
+  const g = new Map();
+  aNormaliser().forEach(f => {
+    const objet = String(f.Marche_saisi || "").trim(), ref = String(f.Marche_saisi_ref || "").trim(), tit = String(f.Marche_saisi_titulaire || "").trim();
+    const key = mots(objet).join(" ") || norm(objet);   // « Entretien des espaces verts » = « entretien espaces verts »
+    if (!g.has(key)) g.set(key, { key, objet: objet || "(marché non précisé)", ref, tit, fiches: [] });
+    const x = g.get(key); x.fiches.push(f); if (!x.tit && tit) x.tit = tit; if (!x.ref && ref) x.ref = ref;
+  });
+  return [...g.values()].sort((a, b) => b.fiches.length - a.fiches.length || a.objet.localeCompare(b.objet, "fr"));
+}
+/** Paires de marchés actifs probablement identiques. */
+function doublons() {
+  const act = MARCHES.filter(m => m.Actif !== false && !refId(m.Fusionne_dans) && m.Intitule), out = [];
+  for (let i = 0; i < act.length; i++) for (let j = i + 1; j < act.length; j++) {
+    const a = act[i], b = act[j];
+    const s = Math.max(score({ objet: a.Intitule, ref: a.Reference, tit: a.Titulaire }, b), score({ objet: b.Intitule, ref: b.Reference, tit: b.Titulaire }, a));
+    if (s >= SEUIL_DOUBLON) out.push({ a, b, s });
+  }
+  return out.sort((x, y) => y.s - x.s);
+}
+const nbFiches = id => FICHES.filter(f => refId(f.Marche) === id).length;
+const mLabel = m => m.Intitule + (m.Reference ? " – " + m.Reference : "");
+
+/* ------------------------------------------------------------------ *
+ *  Écriture dans Grist                                                *
+ * ------------------------------------------------------------------ */
+async function act(actions, msg) {
+  try { await grist.docApi.applyUserActions(actions); toast(msg); await reload(); }
+  catch (e) {
+    const t = String(e && e.message || e);
+    banner("err", /access|acc[eè]s|permission|denied|blocked/i.test(t)
+      ? "Action refusée par les règles d'accès : seuls les acheteurs (table Utilisateurs, rôle Acheteur) peuvent normaliser."
+      : "L'action a échoué : " + esc(t));
+  }
+}
+const aliasAvec = (m, ajouts) => {
+  const ex = String(m.Alias || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const vus = new Set(ex.map(norm).concat([norm(m.Intitule)]));
+  ajouts.map(s => String(s || "").trim()).filter(Boolean).forEach(s => { if (!vus.has(norm(s))) { ex.push(s); vus.add(norm(s)); } });
+  return ex.join("\n");
+};
+async function rattacher(ids, marcheId, saisie, garderAlias) {
+  const m = MARCHES.find(x => x.id === marcheId); if (!m || !ids.length) return;
+  const acts = [["BulkUpdateRecord", TABLES.fiches, ids, { Marche: ids.map(() => marcheId) }]];
+  if (garderAlias && saisie && saisie.objet && score({ objet: saisie.objet }, m) < 1 && norm(saisie.objet) !== norm(m.Intitule))
+    acts.push(["UpdateRecord", TABLES.marches, marcheId, { Alias: aliasAvec(m, [saisie.objet]) }]);
+  await act(acts, `${ids.length} fiche${ids.length > 1 ? "s" : ""} rattachée${ids.length > 1 ? "s" : ""} à « ${m.Intitule} »`);
+}
+async function creerEtRattacher(ids, champs, saisie) {
+  try {
+    const rec = { ...champs, Actif: true };
+    if (saisie.objet && norm(saisie.objet) !== norm(champs.Intitule)) rec.Alias = saisie.objet;
+    Object.keys(rec).forEach(k => { if (rec[k] === "" || rec[k] == null || (META.Marches && !META.Marches[k])) delete rec[k]; });
+    const r = await grist.docApi.applyUserActions([["AddRecord", TABLES.marches, null, rec]]);
+    const id = r.retValues[0];
+    if (ids.length) await grist.docApi.applyUserActions([["BulkUpdateRecord", TABLES.fiches, ids, { Marche: ids.map(() => id) }]]);
+    toast(`Marché « ${champs.Intitule} » créé · ${ids.length} fiche${ids.length > 1 ? "s" : ""} rattachée${ids.length > 1 ? "s" : ""}`);
+    await reload();
+  } catch (e) { banner("err", "Création impossible : " + esc(e && e.message || e)); }
+}
+/** Fusion : B est absorbé par A (fiches re-pointées, libellés de B en alias de A, B désactivé). */
+async function fusionner(aId, bId) {
+  const a = MARCHES.find(x => x.id === aId), b = MARCHES.find(x => x.id === bId); if (!a || !b || a.id === b.id) return;
+  const fichesB = FICHES.filter(f => refId(f.Marche) === b.id).map(f => f.id);
+  const enfants = MARCHES.filter(m => refId(m.Fusionne_dans) === b.id).map(m => m.id);
+  if (!confirm(`Fusionner « ${mLabel(b)} » dans « ${mLabel(a)} » ?\n\n· ${fichesB.length} fiche(s) re-pointée(s) vers le marché conservé\n· libellés du doublon ajoutés aux alias\n· doublon désactivé (non supprimé)\n\nAnnulable avec Ctrl+Z dans Grist.`)) return;
+  const majA = { Alias: aliasAvec(a, [b.Intitule, b.Reference && (b.Intitule + " – " + b.Reference)].concat(String(b.Alias || "").split(/\r?\n/))) };
+  ["Reference", "Titulaire", "Support", "Segment", "Montant_commande_12m"].forEach(k => { if (!a[k] && b[k] && META.Marches[k]) majA[k] = b[k]; });
+  const acts = [["UpdateRecord", TABLES.marches, a.id, majA], ["UpdateRecord", TABLES.marches, b.id, { Actif: false, Fusionne_dans: a.id }]];
+  if (fichesB.length) acts.unshift(["BulkUpdateRecord", TABLES.fiches, fichesB, { Marche: fichesB.map(() => a.id) }]);
+  if (enfants.length) acts.push(["BulkUpdateRecord", TABLES.marches, enfants, { Fusionne_dans: enfants.map(() => a.id) }]);
+  await act(acts, `Fusion faite : ${fichesB.length} fiche(s) re-pointée(s) vers « ${a.Intitule} »`);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Rendu                                                              *
+ * ------------------------------------------------------------------ */
+function renderKpis(G, D) {
+  const n = aNormaliser().length, actifs = MARCHES.filter(m => m.Actif !== false && !refId(m.Fusionne_dans)).length;
+  const k = [["Fiches à rattacher", n, n > 0], ["Saisies distinctes", G.length, false], ["Marchés au référentiel", actifs, false], ["Doublons probables", D.length, D.length > 0]];
+  return `<section class="kpis" aria-label="Indicateurs">${k.map(([a, b, al]) => `<div class="kpi"><div class="k">${a}</div><div class="v ${al ? "alert" : ""}">${b}</div></div>`).join("")}</section>`;
+}
+function render() {
+  const G = groupes(), D = doublons();
+  $("#app").innerHTML = renderKpis(G, D) + `
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" type="button" data-tab="rattacher" aria-selected="${TAB === "rattacher"}">À rattacher (${G.length})</button>
+      <button class="tab" role="tab" type="button" data-tab="ref" aria-selected="${TAB === "ref"}">Référentiel des marchés</button>
+    </div><div id="pane"></div>`;
+  $$("[data-tab]").forEach(b => b.onclick = () => { TAB = b.dataset.tab; render(); });
+  if (TAB === "rattacher") renderRattacher(G); else renderRef(D);
+}
+
+/* --- Onglet « À rattacher » --- */
+function renderRattacher(G) {
+  const pane = $("#pane");
+  if (!G.length) { pane.innerHTML = `<div class="card empty">Toutes les fiches sont rattachées à un marché du référentiel. ✓</div>`; return; }
+  pane.innerHTML = `<div class="toolbar"><input type="search" id="q" placeholder="Filtrer les saisies…" aria-label="Filtrer les saisies">
+      <label><input type="checkbox" id="alias" checked> Ajouter la saisie aux alias du marché (aide la recherche des services)</label></div>
+    <div id="groups"></div>`;
+  const draw = () => {
+    const q = norm($("#q").value);
+    const list = G.filter(g => !q || norm([g.objet, g.ref, g.tit].join(" ")).includes(q));
+    $("#groups").innerHTML = list.map((g, i) => groupCard(g, i)).join("") || `<div class="empty">Aucune saisie ne correspond.</div>`;
+    bindGroups(list);
+  };
+  $("#q").oninput = draw; draw();
+}
+function groupCard(g, i) {
+  const S = suggestions({ objet: g.objet, ref: g.ref, tit: g.tit }, 3);
+  const svcs = [...new Set(g.fiches.map(f => (SERVICES.get(refId(f.Service)) || {}).Nom).filter(Boolean))];
+  const dates = g.fiches.map(f => f.Date_signalement).filter(Boolean).sort((a, b) => a - b);
+  return `<article class="grp" data-g="${i}">
+    <div class="grp-h"><div><b>« ${esc(g.objet)} »</b>${g.ref ? ` <span class="badge">${esc(g.ref)}</span>` : ""}${g.tit ? ` <span class="muted">· ${esc(g.tit)}</span>` : ""}
+      <div class="meta">${g.fiches.length} fiche${g.fiches.length > 1 ? "s" : ""} · ${esc(svcs.slice(0, 3).join(", "))}${svcs.length > 3 ? " +" + (svcs.length - 3) : ""}${dates.length ? " · du " + fmtDate(dates[0]) + " au " + fmtDate(dates[dates.length - 1]) : ""}</div></div></div>
+    <div class="sugg">${S.length ? S.map(x => `<div class="sug"><div>${x.m.Support ? `<span class="badge">${esc(x.m.Support)}</span>` : ""}${esc(x.m.Intitule)}<small>${esc([x.m.Reference, x.m.Titulaire].filter(Boolean).join(" · "))}</small></div>
+        <span class="score ${x.s >= SEUIL_PROBABLE ? "hi" : x.s >= 0.35 ? "mid" : ""}" title="Proximité de la saisie avec ce marché">${Math.round(x.s * 100)} %</span>
+        <button type="button" class="btn small ${x.s >= SEUIL_PROBABLE ? "primary" : ""}" data-link="${x.m.id}">Rattacher</button></div>`).join("")
+      : `<div class="muted" style="font-size:13px">Aucun marché proche dans le référentiel.</div>`}</div>
+    <div class="row-actions">
+      <div class="combo"><input type="search" class="mq" placeholder="Chercher un autre marché…" aria-label="Chercher un marché" autocomplete="off"><div class="list" role="listbox"></div></div>
+      <button type="button" class="btn small ${S.length && S[0].s >= SEUIL_PROBABLE ? "" : "primary"}" data-create>Créer un marché à partir de cette saisie</button>
+    </div>
+    <div class="form-slot"></div>
+    <details class="fiches"><summary>Fiches concernées (décochez pour exclure)</summary><ul class="fl">${g.fiches.map(f => `<li><label><input type="checkbox" checked data-f="${f.id}">
+      <span><b>${esc(f.Numero || "Fiche " + f.id)}</b> · ${esc((SERVICES.get(refId(f.Service)) || {}).Nom || "")} <small>· ${fmtDate(f.Date_signalement)} · ${esc(f.Statut || "")}</small></span></label></li>`).join("")}</ul></details>
+  </article>`;
+}
+function bindGroups(list) {
+  $$("#groups .grp").forEach(card => {
+    const g = list[+card.dataset.g], saisie = { objet: g.objet === "(marché non précisé)" ? "" : g.objet, ref: g.ref, tit: g.tit };
+    const ids = () => $$("[data-f]", card).filter(c => c.checked).map(c => +c.dataset.f);
+    const garder = () => $("#alias") ? $("#alias").checked : true;
+    $$("[data-link]", card).forEach(b => b.onclick = () => rattacher(ids(), +b.dataset.link, saisie, garder()));
+    // Recherche libre dans le référentiel
+    const q = $(".mq", card), lst = $(".list", card);
+    const draw = () => {
+      const ws = norm(q.value).split(" ").filter(Boolean);
+      const res = MARCHES.filter(m => m.Actif !== false && !refId(m.Fusionne_dans) && ws.every(w => norm([m.Intitule, m.Reference, m.Titulaire, m.Support, m.Alias].join(" ")).includes(w))).slice(0, 20);
+      lst.innerHTML = res.map(m => `<div class="opt-row" role="option" data-id="${m.id}">${esc(m.Intitule)}<small>${esc([m.Support, m.Reference, m.Titulaire].filter(Boolean).join(" · "))}</small></div>`).join("") || `<div class="opt-row">Aucun marché.</div>`;
+      lst.classList.add("open");
+      $$("[data-id]", lst).forEach(r => r.onmousedown = e => { e.preventDefault(); lst.classList.remove("open"); rattacher(ids(), +r.dataset.id, saisie, garder()); });
+    };
+    q.oninput = draw; q.onfocus = draw; q.onblur = () => setTimeout(() => lst.classList.remove("open"), 150);
+    $("[data-create]", card).onclick = () => openCreate(card, g, saisie, ids);
+    if (OPEN.has(g.key)) openCreate(card, g, saisie, ids);
+  });
+}
+function supportOptions(sel) {
+  const vals = choices(META, TABLES.marches, "Support");
+  return `<option value="">—</option>` + vals.map(v => `<option ${v === sel ? "selected" : ""}>${esc(v)}</option>`).join("");
+}
+function openCreate(card, g, saisie, ids) {
+  OPEN.add(g.key);
+  const slot = $(".form-slot", card);
+  slot.innerHTML = `<div class="form"><div class="g">
+      <label>Intitulé normalisé<input type="text" data-k="Intitule" value="${esc(saisie.objet)}"></label>
+      <label>Référence<input type="text" data-k="Reference" value="${esc(saisie.ref)}"></label>
+      <label>Support<select data-k="Support">${supportOptions("")}</select></label></div>
+    <div class="g2"><label>Titulaire<input type="text" data-k="Titulaire" value="${esc(saisie.tit)}"></label>
+      <label>Segment<input type="text" data-k="Segment"></label>
+      <label>Commandé sur 12 mois (€)<input type="number" min="0" data-k="Montant_commande_12m"></label></div>
+    <div class="row-actions"><button type="button" class="btn small primary" data-save>Créer et rattacher</button><button type="button" class="btn small" data-cancel>Annuler</button>
+      <span class="muted" style="font-size:12.5px">La saisie du service est conservée telle quelle et ajoutée aux alias.</span></div></div>`;
+  $("[data-cancel]", slot).onclick = () => { OPEN.delete(g.key); slot.innerHTML = ""; };
+  $("[data-save]", slot).onclick = () => {
+    const champs = {}; $$("[data-k]", slot).forEach(i => champs[i.dataset.k] = i.type === "number" ? (i.value === "" ? "" : Number(i.value)) : i.value.trim());
+    if (!champs.Intitule) { $("[data-k=Intitule]", slot).focus(); return; }
+    OPEN.delete(g.key); creerEtRattacher(ids(), champs, saisie);
+  };
+  $("[data-k=Intitule]", slot).focus();
+}
+
+/* --- Onglet « Référentiel » --- */
+let EDIT = null, VOIR_INACTIFS = false;
+function renderRef(D) {
+  const pane = $("#pane");
+  const liste = MARCHES.filter(m => VOIR_INACTIFS || (m.Actif !== false && !refId(m.Fusionne_dans)))
+    .sort((a, b) => nbFiches(b.id) - nbFiches(a.id) || String(a.Intitule).localeCompare(b.Intitule, "fr"));
+  const actifs = MARCHES.filter(m => m.Actif !== false && !refId(m.Fusionne_dans));
+  pane.innerHTML = `
+    ${D.length ? `<section class="dup"><h3>Doublons probables</h3>${D.map((d, i) => `<div class="pair"><div>
+        <b>${esc(mLabel(d.a))}</b> <span class="muted">(${nbFiches(d.a.id)} fiches)</span> ⟷ <b>${esc(mLabel(d.b))}</b> <span class="muted">(${nbFiches(d.b.id)} fiches)</span>
+        <small>${esc([d.a.Titulaire, d.b.Titulaire].filter(Boolean).filter((v, k, a) => a.indexOf(v) === k).join(" / "))} · proximité ${Math.round(d.s * 100)} %</small></div>
+        <div class="row-actions" style="margin:0"><button type="button" class="btn small" data-keep="${d.a.id}" data-drop="${d.b.id}">Garder le 1er</button>
+        <button type="button" class="btn small" data-keep="${d.b.id}" data-drop="${d.a.id}">Garder le 2d</button></div></div>`).join("")}</section>` : ""}
+    <div class="toolbar"><input type="search" id="rq" placeholder="Filtrer le référentiel…" aria-label="Filtrer le référentiel">
+      <label><input type="checkbox" id="inactifs" ${VOIR_INACTIFS ? "checked" : ""}> Afficher les marchés inactifs et fusionnés</label>
+      <button type="button" class="btn small" id="new-m">Nouveau marché</button></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Marché</th><th>Support</th><th>Titulaire</th><th>Alias</th><th class="num">Fiches</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>`;
+  const draw = () => {
+    const q = norm($("#rq").value);
+    const rows = liste.filter(m => !q || norm([m.Intitule, m.Reference, m.Titulaire, m.Support, m.Alias].join(" ")).includes(q));
+    $("#rows").innerHTML = (EDIT === "new" ? editRow({ id: "new" }) : "") + rows.map(m => EDIT === m.id ? editRow(m) : `<tr class="${m.Actif === false || refId(m.Fusionne_dans) ? "off" : ""}">
+      <td><b>${esc(m.Intitule)}</b><br><span class="muted">${esc(m.Reference || "")}</span>${refId(m.Fusionne_dans) ? `<br><span class="pill">fusionné dans ${esc((MARCHES.find(x => x.id === refId(m.Fusionne_dans)) || {}).Intitule || "?")}</span>` : m.Actif === false ? `<br><span class="pill">inactif</span>` : ""}</td>
+      <td>${m.Support ? `<span class="badge">${esc(m.Support)}</span>` : ""}</td><td>${esc(m.Titulaire || "")}</td>
+      <td style="max-width:260px;white-space:pre-line;font-size:12.5px;color:var(--ink-2)">${esc(m.Alias || "")}</td>
+      <td class="num">${nbFiches(m.id)}</td>
+      <td style="white-space:nowrap"><button type="button" class="link" data-edit="${m.id}">Modifier</button>
+        ${m.Actif !== false && !refId(m.Fusionne_dans) && actifs.length > 1 ? `<br><select data-merge="${m.id}" aria-label="Fusionner ${esc(m.Intitule)} dans…" style="margin-top:4px;font-size:12px;padding:3px 6px;max-width:170px">
+          <option value="">Fusionner dans…</option>${actifs.filter(x => x.id !== m.id).map(x => `<option value="${x.id}">${esc(x.Intitule)}</option>`).join("")}</select>` : ""}</td></tr>`).join("")
+      || `<tr><td colspan="6" class="empty">Le référentiel est vide : créez les marchés depuis l'onglet « À rattacher ».</td></tr>`;
+    bindRef();
+  };
+  $("#rq").oninput = draw;
+  $("#inactifs").onchange = e => { VOIR_INACTIFS = e.target.checked; renderRef(D); };
+  $("#new-m").onclick = () => { EDIT = "new"; draw(); };
+  $$("[data-keep]").forEach(b => b.onclick = () => fusionner(+b.dataset.keep, +b.dataset.drop));
+  draw();
+}
+function editRow(m) {
+  return `<tr><td colspan="6"><div class="form" style="margin:0"><div class="g">
+      <label>Intitulé<input type="text" data-k="Intitule" value="${esc(m.Intitule || "")}"></label>
+      <label>Référence<input type="text" data-k="Reference" value="${esc(m.Reference || "")}"></label>
+      <label>Support<select data-k="Support">${supportOptions(m.Support)}</select></label></div>
+    <div class="g2"><label>Titulaire<input type="text" data-k="Titulaire" value="${esc(m.Titulaire || "")}"></label>
+      <label>Segment<input type="text" data-k="Segment" value="${esc(m.Segment || "")}"></label>
+      <label>Commandé sur 12 mois (€)<input type="number" min="0" data-k="Montant_commande_12m" value="${esc(m.Montant_commande_12m == null ? "" : m.Montant_commande_12m)}"></label></div>
+    <label style="margin-top:8px">Alias (un par ligne)<textarea data-k="Alias">${esc(m.Alias || "")}</textarea></label>
+    <div class="row-actions"><label class="check"><input type="checkbox" data-k="Actif" ${m.Actif !== false ? "checked" : ""}> Actif (proposé aux services)</label>
+      <button type="button" class="btn small primary" data-save>Enregistrer</button><button type="button" class="btn small" data-cancel>Annuler</button></div></div></td></tr>`;
+}
+function bindRef() {
+  $$("[data-edit]").forEach(b => b.onclick = () => { EDIT = +b.dataset.edit; render(); });
+  $$("[data-merge]").forEach(s => s.onchange = () => { if (s.value) fusionner(+s.value, +s.dataset.merge); });
+  const save = $("#rows [data-save]");
+  if (save) {
+    $("#rows [data-cancel]").onclick = () => { EDIT = null; render(); };
+    save.onclick = async () => {
+      const rec = {}; $$("#rows [data-k]").forEach(i => rec[i.dataset.k] = i.type === "checkbox" ? i.checked : i.type === "number" ? (i.value === "" ? null : Number(i.value)) : i.value.trim());
+      if (!rec.Intitule) { $("#rows [data-k=Intitule]").focus(); return; }
+      Object.keys(rec).forEach(k => { if (META.Marches && !META.Marches[k]) delete rec[k]; });
+      const id = EDIT; EDIT = null;
+      await act([id === "new" ? ["AddRecord", TABLES.marches, null, rec] : ["UpdateRecord", TABLES.marches, id, rec]],
+        id === "new" ? `Marché « ${rec.Intitule} » créé` : `Marché « ${rec.Intitule} » enregistré`);
+    };
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Divers                                                             *
+ * ------------------------------------------------------------------ */
+let tT; function toast(msg) { if (!msg) return; const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(tT); tT = setTimeout(() => t.classList.remove("on"), 2800); banner("", ""); }
+function banner(kind, html) { $("#banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : ""; }
+async function reload() { await load(); render(); }
+
+/* ------------------------------------------------------------------ *
+ *  Démarrage                                                          *
+ * ------------------------------------------------------------------ */
+(async function start() {
+  try { await connect(); }
+  catch (e) { const [t, h] = messageConnexion(e); fatal($("#app"), t, h); return; }
+  try {
+    await load();
+    const P = await loadParams(); if (P.libelle_pole) $("#sub").textContent = P.libelle_pole + " · rattacher les saisies au référentiel, fusionner les doublons";
+  } catch (e) {
+    fatal($("#app"), e.install ? "Document à installer" : "Lecture du document impossible",
+      e.install ? "Tables Fiches et Marches absentes : lancez la page <b>Installation</b>." : esc(e && e.message || e));
+    return;
+  }
+  $("#refresh").onclick = reload;
+  render();
+})();
+})();
+</script>
+</body>
+</html>
