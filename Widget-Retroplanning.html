@@ -209,7 +209,7 @@ footer{font-size:12px;color:var(--muted);max-width:75ch}
           </select>
         </div>
       </div>
-      <div>
+      <div id="varBox" hidden>
         <label class="label" for="variante">Procédure formalisée envisagée</label>
         <select id="variante">
           <option value="aoo" selected>Appel d'offres ouvert</option>
@@ -217,7 +217,7 @@ footer{font-size:12px;color:var(--muted);max-width:75ch}
           <option value="pn">Procédure avec négociation</option>
           <option value="dc">Dialogue compétitif</option>
         </select>
-        <div class="hint">Utilisé seulement si le montant atteint le seuil européen.</div>
+        <div class="hint">Le montant atteint le seuil européen : choisissez la procédure formalisée envisagée.</div>
       </div>
       <div class="row2">
         <div>
@@ -495,7 +495,7 @@ footer{font-size:12px;color:var(--muted);max-width:75ch}
     applyCites();
 
     if(!state.rules.length){
-      state.last=null;
+      state.last=null; $("varBox").hidden=true;
       var st=$("stamp"); st.className="stamp z-vide"; st.innerHTML="<big>—</big><small>table vide</small>";
       $("vTitle").textContent=state.dbState==="loading"?"Chargement de la table des règles…":"Aucune règle disponible";
       $("vText").textContent={off:"Ce widget doit être ajouté dans Grist (widget personnalisé) et lié à la table des règles.",nomap:"Dans le panneau du widget, associez les colonnes de la table : paramètre, valeur, début, etc.",loading:"",ready:"La table liée ne contient aucune règle exploitable : vérifiez les noms de paramètres et les dates de début."}[state.dbState]||"";
@@ -513,6 +513,7 @@ footer{font-size:12px;color:var(--muted);max-width:75ch}
       var nref=iso(P.launch); if(nref===ref) break; ref=nref;
     }
     state.refDate=ref;
+    $("varBox").hidden=zone!=="formalise";
     var disp=R.dispEff?R.dispEff.valeur:0, eu=R.formalise?R.formalise.valeur:0, pubS=R.publicite?R.publicite.valeur:0;
     var pubTxt=R.publicite?euros(pubS)+" HT":"le seuil de publicité obligatoire";
     var euTxt=R.formalise?"le seuil européen de "+euros(eu)+" HT":"le seuil européen";
@@ -592,7 +593,6 @@ footer{font-size:12px;color:var(--muted);max-width:75ch}
     if(innov) al.push(["info","Achat innovant : justifier le caractère innovant au dossier."+det("innovant_lots")+cite("innovant_lots")]);
     if(zone==="formalise" && variante==="pn") al.push(["warn","Procédure avec négociation : recours limité à des cas strictement énumérés."+det("pn_cas")+cite("pn_cas")+" Motivez le choix dans le rapport de présentation."]);
     if(zone==="formalise" && variante==="dc") al.push(["warn","Dialogue compétitif : mêmes cas de recours que la procédure avec négociation."+cite("dc_cas")+" Procédure lourde, adaptée aux projets complexes ; prévoir une éventuelle prime aux participants"+cite("dc_prime")+" et motiver le choix dans le rapport de présentation."]);
-    if(zone!=="formalise" && (variante==="pn"||variante==="dc")) al.push(["info","Sous le seuil européen, la procédure adaptée permet déjà de négocier si le règlement de consultation le prévoit : le choix d'une procédure formalisée est sans objet."]);
     if(zone==="dispense") al.push(["info","Vérifiez l'absence de fractionnement : la computation porte sur l'ensemble des prestations homogènes, sur toute la durée."+cite("fractionnement")]);
     if(zone==="formalise") al.push(["info","Allotissement obligatoire sauf justification."+cite("allotissement")]);
     $("alerts").innerHTML=al.map(function(a){return '<div class="alert'+(a[0]==="info"?" info":"")+'">'+a[1]+"</div>"}).join("");
