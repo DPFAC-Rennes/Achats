@@ -36,6 +36,9 @@ h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,4vw,36px);l
 @media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px;min-width:0}
 .form{display:flex;flex-direction:column;gap:14px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);background:var(--sunk);border-top:3px solid var(--accent)}
+.form-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.form-head .btn{flex:none;padding:5px 10px;font-size:12px;background:var(--field)}
+.form-head .btn:hover{background:var(--accent-soft)}
 .form-head h3{margin:0 0 2px;font-size:18px}
 .form-head p{margin:0;font-size:12px;color:var(--muted)}
 @media (max-width:860px){.form{position:static}}
@@ -166,7 +169,7 @@ footer{font-size:12px;color:var(--muted);max-width:75ch}
 
   <div class="grid">
     <form class="panel form" id="f" autocomplete="off">
-      <div class="form-head"><h3>Votre besoin</h3><p>Renseignez les champs encadrés. L'exemple pré‑rempli est à remplacer.</p></div>
+      <div class="form-head"><div><h3>Votre besoin</h3><p>Renseignez les champs encadrés. L'exemple pré‑rempli est à remplacer.</p></div><button type="button" class="btn ghost" id="resetBtn" title="Efface les saisies de la fiche ; les règles ne sont pas touchées">Réinitialiser</button></div>
       <div>
         <label class="label" for="objet">Objet du marché</label>
         <textarea id="objet">Réfection des sanitaires de la maison d'arrêt</textarea>
@@ -683,7 +686,7 @@ footer{font-size:12px;color:var(--muted);max-width:75ch}
   ["duree","forme","variante","cible","ancre","objet","innov"].forEach(function(id){$(id).addEventListener("input",render)});
   $("innov").addEventListener("change",render);
   $("montant").addEventListener("input",render);
-  $("alloti").addEventListener("change",function(){drawLots();syncAlloti();render()});
+  $("alloti").addEventListener("change",function(){if($("alloti").checked&&!state.lots.length)state.lots.push({nom:"",montant:""});drawLots();syncAlloti();render()});
   $("addLot").addEventListener("click",function(){state.lots.push({nom:"",montant:""});drawLots();syncAlloti();render();var el=$("lot-nom-"+(state.lots.length-1));if(el)el.focus()});
   $("lotsList").addEventListener("input",function(e){var t=e.target;if(t.dataset.i==null)return;state.lots[+t.dataset.i][t.dataset.f]=t.value;syncAlloti();render()});
   $("lotsList").addEventListener("focusout",function(e){var t=e.target;if(t.dataset.f==="montant"){var n=parseAmount(t.value);if(n){t.value=eur.format(n);state.lots[+t.dataset.i].montant=t.value}}});
@@ -695,6 +698,15 @@ footer{font-size:12px;color:var(--muted);max-width:75ch}
     state.custom[t.dataset.k]=v; render();
   });
   $("f").addEventListener("submit",function(e){e.preventDefault()});
+  function resetInputs(){
+    $("objet").value=""; state.type="travaux";
+    Array.prototype.forEach.call($("type").children,function(x){x.setAttribute("aria-pressed",x.dataset.v==="travaux"?"true":"false")});
+    $("innov").checked=false; $("alloti").checked=false; state.lots=[];
+    $("montant").value=""; $("duree").value="6"; $("forme").value="mo"; $("variante").value="aoo"; $("ancre").value="notif";
+    $("cible").value=iso(addDays(today,150)); state.custom={};
+    drawLots(); syncAlloti(); render(); $("objet").focus();
+  }
+  $("resetBtn").addEventListener("click",resetInputs);
   drawLots();
   render();
 
