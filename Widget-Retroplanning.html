@@ -1,0 +1,841 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Calculateur de procédure</title>
+<style>
+/* Layout : fiche de saisie à gauche, résultat à droite (visa, échelle des seuils, rétroplanning), puis la table des règles datées en pleine largeur. Une colonne sur mobile. */
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --sunk:#E8ECF2; --line:#D3D9E3;
+  --ink:#16202E; --muted:#5A6678; --accent:#2B4C8C; --accent-soft:#E2E9F6; --on-accent:#FFFFFF;
+  --ok:#2F7A55; --ok-soft:#E1F1E8; --mid:#A0670F; --mid-soft:#FBEFD9; --hi:#5B3FA8; --hi-soft:#ECE6FA; --warn:#B23A2E; --warn-soft:#FBE5E2;
+  --field:#FFFFFF; --field-line:#8795AB; --field-shadow:inset 0 1px 2px rgba(22,32,46,.10);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235A6678' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --f-display:"Spectral",Georgia,"Times New Roman",serif;
+  --f-body:"Libre Franklin",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10151E; --surface:#18202C; --sunk:#202A38; --line:#2E3A4B;
+  --ink:#E6EBF2; --muted:#9AA7B9; --accent:#8EAEEB; --accent-soft:#22314D; --on-accent:#10151E;
+  --ok:#6FCB9A; --ok-soft:#173326; --mid:#E8B25A; --mid-soft:#3A2C12; --hi:#B7A2F2; --hi-soft:#2C2447; --warn:#F08A7E; --warn-soft:#3D1D1A;
+  --field:#0D1219; --field-line:#566882; --field-shadow:inset 0 1px 2px rgba(0,0,0,.45);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%239AA7B9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151E; --surface:#18202C; --sunk:#202A38; --line:#2E3A4B;
+  --ink:#E6EBF2; --muted:#9AA7B9; --accent:#8EAEEB; --accent-soft:#22314D; --on-accent:#10151E;
+  --ok:#6FCB9A; --ok-soft:#173326; --mid:#E8B25A; --mid-soft:#3A2C12; --hi:#B7A2F2; --hi-soft:#2C2447; --warn:#F08A7E; --warn-soft:#3D1D1A;
+  --field:#0D1219; --field-line:#566882; --field-shadow:inset 0 1px 2px rgba(0,0,0,.45);
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%239AA7B9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;border-bottom:2px solid var(--ink);padding-bottom:12px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,4vw,36px);line-height:1.1;margin:0;text-wrap:balance}
+.ref{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px;min-width:0}
+.form{display:flex;flex-direction:column;gap:14px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);background:var(--sunk);border-top:3px solid var(--accent)}
+.form-head h3{margin:0 0 2px;font-size:18px}
+.form-head p{margin:0;font-size:12px;color:var(--muted)}
+@media (max-width:860px){.form{position:static}}
+.label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);opacity:.8;display:block;margin-bottom:5px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--field-line);border-radius:5px;padding:9px 10px;box-shadow:var(--field-shadow);transition:border-color .15s,box-shadow .15s}
+input:hover,select:hover,textarea:hover{border-color:var(--accent)}
+select{appearance:none;-webkit-appearance:none;padding-right:32px;cursor:pointer;background-image:var(--chev);background-repeat:no-repeat;background-position:right 11px center}
+textarea{resize:vertical;min-height:58px}
+input[type=checkbox]{width:18px;height:18px;padding:0;accent-color:var(--accent);box-shadow:none;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),0 0 0 1px var(--accent)}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:10px}
+.seg{display:flex;border:1px solid var(--field-line);border-radius:5px;overflow:hidden;background:var(--field);box-shadow:var(--field-shadow)}
+.seg button{flex:1;font:inherit;font-size:13px;font-weight:500;padding:9px 4px;border:0;background:var(--field);color:var(--ink);cursor:pointer;transition:background .15s}
+.seg button:hover{background:var(--accent-soft)}
+.seg button+button{border-left:1px solid var(--field-line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);font-weight:600}
+.check{display:flex;gap:10px;align-items:flex-start;background:var(--sunk);border-radius:4px;padding:10px}
+.check input{margin-top:1px;flex:none}
+.form .check{background:var(--field);border:1px solid var(--field-line);box-shadow:var(--field-shadow);cursor:pointer;border-radius:5px;transition:border-color .15s}
+.form .check:hover{border-color:var(--accent)}
+.check b{display:block;font-weight:600}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.example{font-size:12px;color:var(--muted);background:var(--sunk);border-radius:4px;padding:6px 8px}
+.result{display:flex;flex-direction:column;gap:20px;min-width:0}
+.verdict{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center}
+@media (max-width:520px){.verdict{grid-template-columns:minmax(0,1fr)}}
+.stamp{border:3px double currentColor;border-radius:6px;padding:10px 14px;text-align:center;transform:rotate(-3deg);font-family:var(--f-display);font-weight:700;line-height:1.1;min-width:170px}
+.stamp small{display:block;font-family:var(--f-mono);font-weight:400;font-size:11px;letter-spacing:.06em;margin-top:6px;text-transform:uppercase}
+.stamp big{font-size:22px;display:block}
+.z-dispense{color:var(--ok)} .z-mapa,.z-mapa90{color:var(--mid)} .z-formalise{color:var(--hi)} .z-vide{color:var(--muted)}
+.verdict h2{font-family:var(--f-display);font-size:22px;margin:0 0 4px;text-wrap:balance}
+.verdict p{margin:0;color:var(--muted)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:16px}
+.fact{background:var(--surface);padding:10px 12px;min-width:0}
+.fact b{display:block;font-family:var(--f-mono);font-size:15px;font-variant-numeric:tabular-nums}
+.fact span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.applied{margin-top:14px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.applied b{color:var(--ink);font-family:var(--f-mono);font-weight:600}
+.refdate{display:inline-block;font-family:var(--f-mono);font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:3px;padding:2px 6px;margin-top:8px}
+h3{font-family:var(--f-display);font-size:19px;margin:0 0 12px}
+.ladder{position:relative;margin:34px 4px 8px}
+.bar{display:flex;height:14px;border-radius:3px;overflow:hidden}
+.bar div{height:100%}
+.ticks{position:relative;height:42px}
+.tick{position:absolute;top:4px;transform:translateX(-50%);font-family:var(--f-mono);font-size:11px;color:var(--muted);white-space:nowrap;text-align:center}
+.tick::before{content:"";display:block;width:1px;height:6px;background:var(--muted);margin:0 auto 3px}
+.marker{position:absolute;top:-30px;transform:translateX(-50%);font-family:var(--f-mono);font-size:12px;font-weight:600;white-space:nowrap;color:var(--ink);transition:left .3s}
+.marker::after{content:"";display:block;width:2px;height:22px;background:var(--ink);margin:2px auto 0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+dl{margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+dt{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+dd{margin:2px 0 0}
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{border-left:3px solid var(--warn);background:var(--warn-soft);padding:8px 12px;border-radius:0 4px 4px 0;font-size:14px}
+.alert.info{border-color:var(--accent);background:var(--accent-soft)}
+.plan-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px;margin-bottom:12px}
+.plan-head h3{margin:0}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:620px}
+th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.d{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}
+td input{width:68px;padding:5px 6px;font-family:var(--f-mono);text-align:right}
+th.edit{color:var(--accent)}
+th.edit span{font-weight:400;text-transform:none;letter-spacing:0}
+td .sub{display:block;font-size:12px;color:var(--muted)}
+.lock{font-size:11px;color:var(--hi);font-weight:600;letter-spacing:.04em}
+.launch{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.04em}
+.gantt{position:relative;height:10px;background:var(--sunk);border-radius:2px;min-width:140px}
+.gantt span{position:absolute;top:0;height:100%;border-radius:2px;background:var(--accent)}
+tr.key .gantt span{background:var(--hi)}
+tr.after td{border-top:1px dashed var(--muted)}
+tr.after .gantt span{background:var(--ok)}
+tr.na td{color:var(--muted)}
+tr.na strong{font-weight:500}
+.start-line{margin-top:12px;font-size:14px}
+.start-line strong{font-family:var(--f-mono)}
+/* Table des règles */
+.rules-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px 20px;margin-bottom:12px}
+.rules-head h3{margin:0}
+.rules-head p{margin:4px 0 0;font-size:13px;color:var(--muted);max-width:70ch}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:13px}
+.btn{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);border-radius:4px;padding:7px 12px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.danger{border-color:var(--warn);background:transparent;color:var(--warn)}
+.btn.danger.armed{background:var(--warn);color:var(--surface)}
+.btn:disabled{opacity:.5;cursor:default}
+table.rules{min-width:860px;font-size:13px}
+table.rules td{vertical-align:top}
+.grp td{background:var(--sunk);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cite{display:inline-block;font-family:var(--f-mono);font-size:.78em;line-height:1.4;color:var(--muted);background:rgba(120,134,156,.16);border-radius:3px;padding:0 5px;margin-left:3px;white-space:normal;vertical-align:baseline}
+.pill{display:inline-block;font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.p-on{background:var(--ok-soft);color:var(--ok)} .p-past{background:var(--sunk);color:var(--muted)} .p-next{background:var(--mid-soft);color:var(--mid)}
+tr.past td:not(.act){color:var(--muted)}
+.act{white-space:nowrap;text-align:right}
+.editor{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;background:var(--sunk);border-radius:6px;padding:14px;margin-bottom:14px}
+.editor .wide{grid-column:1/-1}
+.editor .bar2{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+.empty{padding:20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:6px}
+.msg{font-size:13px;color:var(--warn)}
+.pdfbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;background:var(--accent-soft);border-radius:6px;padding:10px 14px}
+.pdfbar .hint{margin:0;min-width:0;flex:1 1 220px}
+.lotsbox{display:flex;flex-direction:column;gap:8px}
+.lots{display:flex;flex-direction:column;gap:6px}
+.lot{display:grid;grid-template-columns:minmax(0,1fr) 110px 32px;gap:6px;align-items:center}
+.lot input{padding:7px 8px}
+.lot button{font:inherit;border:1px solid var(--field-line);background:var(--field);color:var(--muted);border-radius:5px;height:36px;cursor:pointer}
+.lot button:hover{border-color:var(--warn);color:var(--warn)}
+.lotstab{min-width:480px}
+.reg{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:1px 9px;white-space:nowrap}
+.reg-dispense{background:var(--ok-soft);color:var(--ok)} .reg-mapa{background:var(--mid-soft);color:var(--mid)} .reg-marche{background:var(--sunk);color:var(--muted)}
+.pool{height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;margin:10px 0 6px;max-width:420px}
+.pool span{display:block;height:100%;background:var(--ok)}
+input[readonly]{background:transparent;border-style:dashed;box-shadow:none;cursor:default}
+footer{font-size:12px;color:var(--muted);max-width:75ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Calculateur de procédure</h1>
+    <div class="ref" id="hdrRef">Acheteurs de l'État · Code de la commande publique · règles datées lues dans la table Grist liée</div>
+  </header>
+
+  <div class="grid">
+    <form class="panel form" id="f" autocomplete="off">
+      <div class="form-head"><h3>Votre besoin</h3><p>Renseignez les champs encadrés. L'exemple pré‑rempli est à remplacer.</p></div>
+      <div>
+        <label class="label" for="objet">Objet du marché</label>
+        <textarea id="objet">Réfection des sanitaires de la maison d'arrêt</textarea>
+      </div>
+      <div>
+        <span class="label" id="lt">Nature des prestations</span>
+        <div class="seg" role="group" aria-labelledby="lt" id="type">
+          <button type="button" data-v="fournitures">Fournitures</button>
+          <button type="button" data-v="services">Services</button>
+          <button type="button" data-v="travaux" aria-pressed="true">Travaux</button>
+        </div>
+      </div>
+      <label class="check" for="innov">
+        <input type="checkbox" id="innov">
+        <span><b>Achat innovant</b><span class="hint">Travaux, fournitures ou services nouveaux ou sensiblement améliorés. <span data-cite="achat_innovant"></span></span></span>
+      </label>
+      <div>
+        <label class="label" for="montant">Montant estimé HT, toute durée</label>
+        <input id="montant" class="num" inputmode="numeric" value="120 000">
+        <div class="hint"><span id="montantHint">Valeur totale reconductions et options comprises, pour l'ensemble des prestations homogènes.</span> <span id="montantCite" data-cite="computation"></span></div>
+      </div>
+      <label class="check" for="alloti">
+        <input type="checkbox" id="alloti">
+        <span><b>Marché alloti</b><span class="hint">Détaillez les lots pour repérer ceux qui peuvent être dispensés ou passés en procédure adaptée (« petits lots »).</span></span>
+      </label>
+      <div id="lotsBox" class="lotsbox" hidden>
+        <div id="lotsList" class="lots"></div>
+        <button type="button" class="btn ghost" id="addLot">Ajouter un lot</button>
+      </div>
+      <div class="row2">
+        <div>
+          <label class="label" for="duree">Durée (mois)</label>
+          <input id="duree" class="num" type="number" min="1" max="120" value="6">
+        </div>
+        <div>
+          <label class="label" for="forme">Forme</label>
+          <select id="forme">
+            <option value="mo" selected>Marché ordinaire</option>
+            <option value="ac">Accord‑cadre</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="label" for="variante">Procédure formalisée envisagée</label>
+        <select id="variante">
+          <option value="aoo" selected>Appel d'offres ouvert</option>
+          <option value="aor">Appel d'offres restreint</option>
+          <option value="pn">Procédure avec négociation</option>
+          <option value="dc">Dialogue compétitif</option>
+        </select>
+        <div class="hint">Utilisé seulement si le montant atteint le seuil européen.</div>
+      </div>
+      <div class="row2">
+        <div>
+          <label class="label" for="ancre">Date cible</label>
+          <select id="ancre">
+            <option value="notif" selected>Notification</option>
+            <option value="exec">Début d'exécution</option>
+          </select>
+        </div>
+        <div>
+          <label class="label" for="cible">Au</label>
+          <input id="cible" type="date" class="num">
+        </div>
+      </div>
+      <div class="hint">Les seuils sont appréciés à la date de lancement de la consultation déduite du rétroplanning.</div>
+    </form>
+
+    <div class="result">
+      <div class="pdfbar" id="pdfBar">
+        <span class="hint" id="pdfMsg">Fiche de procédure : objet, procédure, règles appliquées, vigilance et rétroplanning.</span>
+        <button type="button" class="btn" id="pdfBtn">Générer le PDF</button>
+      </div>
+      <section class="panel">
+        <div class="verdict">
+          <div class="stamp" id="stamp"></div>
+          <div>
+            <div class="label" id="vObj"></div>
+            <h2 id="vTitle"></h2>
+            <p id="vText"></p>
+            <span class="refdate" id="vRef"></span>
+          </div>
+        </div>
+        <div class="facts" id="facts"></div>
+        <div class="applied" id="applied"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Où se situe le besoin</h3>
+        <div class="ladder">
+          <div class="marker" id="marker"></div>
+          <div class="bar" id="bar"></div>
+          <div class="ticks" id="ticks"></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--ok)"></i>Dispense de publicité et de mise en concurrence</span>
+          <span><i style="background:var(--mid)"></i>Procédure adaptée</span>
+          <span><i style="background:var(--hi)"></i>Procédure formalisée</span>
+        </div>
+        <div class="hint">Échelle logarithmique.</div>
+      </section>
+
+      <section class="panel" id="lotsPanel" hidden>
+        <h3>Allotissement et petits lots</h3>
+        <div class="scroll"><table class="lotstab"><thead><tr><th>Lot</th><th>Montant HT</th><th>Part</th><th>Régime proposé</th></tr></thead><tbody id="lotsRes"></tbody></table></div>
+        <div class="hint" id="lotsNote"></div>
+      </section>
+
+      <section class="panel cols">
+        <div>
+          <h3>Publicité et délais</h3>
+          <dl id="pub"></dl>
+        </div>
+        <div>
+          <h3>Points de vigilance</h3>
+          <div class="alerts" id="alerts"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="plan-head">
+          <h3>Rétroplanning</h3>
+          <span class="hint">Jours calendaires. Les durées encadrées se modifient ; les minima réglementaires viennent de la table.</span>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Phase</th><th class="edit">Jours <span>modifiable</span></th><th>Début</th><th>Fin</th><th style="width:28%">Calendrier</th></tr></thead>
+            <tbody id="plan"></tbody>
+          </table>
+        </div>
+        <div class="start-line" id="startLine"></div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel" id="rulesPanel">
+    <div class="rules-head">
+      <div>
+        <h3>Table des règles</h3>
+        <p>Chaque ligne fixe un seuil ou un délai pour une période. Le calculateur retient la ligne en vigueur à la date de lancement, la plus spécifique en cas de recouvrement. Pour suivre l'état du droit, modifiez la table dans Grist : renseignez la date de fin de l'ancienne ligne et ajoutez la nouvelle.</p>
+      </div>
+      <div class="tools">
+        <label class="check" for="showPast" style="padding:6px 10px"><input type="checkbox" id="showPast"> <span>Historique</span></label>
+      </div>
+    </div>
+    <div id="rulesStatus" class="hint"></div>
+    <div class="scroll" id="rulesWrap"></div>
+  </section>
+
+  <footer>
+    Outil d'aide à la décision, qui ne remplace pas l'analyse juridique. Ne couvre pas les services sociaux et spécifiques, les marchés négociés sans publicité <span data-cite="exclusions"></span>, la défense et sécurité ni les plafonds propres aux lots innovants. Vérifier les durées internes (visa du contrôleur budgétaire, circuits de signature) avec votre service.
+  </footer>
+</div>
+
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+(function(){
+  var PARAMS = {
+    dispense:{l:"Seuil de dispense de procédure",u:"€ HT",kind:"seuil"},
+    dispense_innovant:{l:"Seuil de dispense, achats innovants",u:"€ HT",kind:"seuil"},
+    publicite:{l:"Seuil de publicité obligatoire (MAPA)",u:"€ HT",kind:"seuil"},
+    formalise:{l:"Seuil de procédure formalisée",u:"€ HT",kind:"seuil"},
+    delai_aoo:{l:"Délai minimal de remise des offres, AO ouvert",u:"jours",kind:"delai"},
+    delai_aor_cand:{l:"Délai minimal candidatures, AO restreint",u:"jours",kind:"delai"},
+    delai_aor_off:{l:"Délai minimal offres, AO restreint",u:"jours",kind:"delai"},
+    standstill:{l:"Délai de suspension avant signature",u:"jours",kind:"delai"},
+    delai_pn_cand:{l:"Délai minimal candidatures, procédure avec négociation",u:"jours",kind:"delai"},
+    delai_pn_off:{l:"Délai minimal offres initiales, procédure avec négociation",u:"jours",kind:"delai"},
+    delai_dc_cand:{l:"Délai minimal candidatures, dialogue compétitif",u:"jours",kind:"delai"},
+    mapa_petit_lot:{l:"Seuil MAPA « petits lots »",u:"€ HT",kind:"seuil"},
+    part_petits_lots:{l:"Part maximale des petits lots",u:"%",kind:"seuil"},
+    dematerialisation:{l:"Seuil de mise à disposition gratuite des documents sur le profil d'acheteur",u:"€ HT",kind:"seuil"},
+    duree_max_ac:{l:"Durée maximale d'un accord‑cadre",u:"mois",kind:"delai"}
+  };
+  var NATURES = {tous:"Toutes natures",fs:"Fournitures et services",travaux:"Travaux"};
+  var ACHETEURS = {tous:"Tous acheteurs",apc:"Autorités publiques centrales",pa:"Autres pouvoirs adjudicateurs"};
+
+  // Phases du rétroplanning. Durées par défaut en jours calendaires ; null = sans objet pour la procédure.
+  var PHASES=[
+    {id:"prep",t:"Travail préparatoire",s:"Échanges entre les services bénéficiaires et le service achats : expression du besoin, estimation, computation des seuils"},
+    {id:"sourcing",t:"Sourcing",s:"Échanges avec les opérateurs économiques, veille et parangonnage",c:"sourcing"},
+    {id:"appach",t:"Planification APPACH",s:"Inscription ou mise à jour du projet dans la programmation des achats"},
+    {id:"dce",t:"Rédaction DCE",s:"RC, AE, CCAP, CCTP, BPU/DQE"},
+    {id:"pub",t:"Envoi de la publicité",s:""},
+    {id:"remise",t:"Remise des offres",s:""},
+    {id:"analyse",t:"Analyse des offres",s:"Rapport d'analyse des offres"},
+    {id:"valid",t:"Validation de l'analyse",s:"Validation du rapport et choix de l'attributaire"},
+    {id:"pieces",t:"Pièces complémentaires et mise au point",s:"Demande de pièces complémentaires à l'attributaire, mise au point du marché le cas échéant"},
+    {id:"rejet",t:"Notification aux non retenus",s:"",c:"rejet_non_retenus"},
+    {id:"sign",t:"Signature du marché",s:"Signature électronique par l'ordonnateur ou son délégataire"},
+    {id:"notif",t:"Notification au titulaire",s:"Engagement juridique dans Chorus, notification du marché signé",key:1},
+    {id:"exec",t:"Début d'exécution du marché",s:"Délai entre la notification et le démarrage des prestations (ordre de service, premier bon de commande)",after:1}
+  ];
+  var DUR={
+    dispense:{prep:14,sourcing:7,appach:2,dce:5,pub:null,remise:10,analyse:5,valid:2,pieces:3,rejet:null,sign:3,notif:1,exec:7},
+    mapa:{prep:21,sourcing:14,appach:5,dce:14,pub:1,remise:15,analyse:10,valid:5,pieces:7,rejet:3,sign:5,notif:1,exec:7},
+    mapa90:{prep:30,sourcing:21,appach:7,dce:21,pub:2,remise:21,analyse:14,valid:7,pieces:10,rejet:5,sign:7,notif:2,exec:15},
+    aoo:{prep:45,sourcing:30,appach:7,dce:30,pub:3,remise:35,analyse:21,valid:10,pieces:10,rejet:11,sign:7,notif:2,exec:15},
+    aor:{prep:45,sourcing:30,appach:7,dce:30,pub:3,remise:70,analyse:21,valid:10,pieces:10,rejet:11,sign:7,notif:2,exec:15},
+    pn:{prep:45,sourcing:30,appach:7,dce:30,pub:3,remise:70,analyse:45,valid:10,pieces:10,rejet:11,sign:7,notif:2,exec:15},
+    dc:{prep:60,sourcing:45,appach:7,dce:45,pub:3,remise:40,analyse:120,valid:14,pieces:14,rejet:11,sign:7,notif:2,exec:15}
+  };
+  var SUBS={
+    dce:{dispense:"Cahier des charges simplifié, lettre de demande de devis"},
+    pub:{mapa:"Publicité adaptée : profil d'acheteur (PLACE), sollicitation directe d'entreprises",mapa90:"Avis au BOAMP ou dans un JAL ; documents de la consultation sur le profil d'acheteur (PLACE)",_:"Avis de marché au BOAMP et au JOUE"},
+    remise:{dispense:"Demande et réception des devis (trois recommandés)",mapa:"Délai raisonnable, 15 jours d'usage",mapa90:"Délai raisonnable, au moins 3 semaines conseillées",aoo:"Délai minimal réglementaire à compter de l'envoi de l'avis",aor:"Candidatures, sélection des candidats, puis remise des offres",pn:"Candidatures, sélection, puis offres initiales",dc:"Candidatures puis sélection des participants au dialogue"},
+    analyse:{pn:"Analyse des offres initiales, négociation, offres finales et analyse",dc:"Phases de dialogue, remise et analyse des offres finales"},
+    rejet:{mapa:"Notification du rejet aux candidats évincés, sans délai de suspension obligatoire",mapa90:"Notification du rejet aux candidats évincés, sans délai de suspension obligatoire",_:"Lettres de rejet, puis délai de suspension avant signature"}
+  };
+  function minFor(id,key,R){
+    function v(p){return R[p]?R[p].valeur:0}
+    if(key==="aoo"&&id==="remise") return v("delai_aoo");
+    if(key==="aor"&&id==="remise") return v("delai_aor_cand")+v("delai_aor_off");
+    if(key==="pn"&&id==="remise") return v("delai_pn_cand")+v("delai_pn_off");
+    if(key==="dc"&&id==="remise") return v("delai_dc_cand");
+    if((key==="aoo"||key==="aor"||key==="pn"||key==="dc")&&id==="rejet") return v("standstill");
+    return 0;
+  }
+
+  var $ = function(id){return document.getElementById(id)};
+  var esc = function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
+  var state = {type:"travaux", custom:{}, rules:[], textes:{}, loaded:false, dbState:"loading", canEdit:false, editing:null, armed:null, refDate:null};
+  var eur = new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0});
+  var fmtD = new Intl.DateTimeFormat("fr-FR",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"});
+  var fmtS = new Intl.DateTimeFormat("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"});
+  function fmtVal(r){var u=PARAMS[r.param]?PARAMS[r.param].u:"";return u==="jours"?r.valeur+" j":(u==="mois"?r.valeur+" mois":(u==="%"?r.valeur+" %":euros(r.valeur)))}
+  // Références et compléments juridiques : lus dans la table « Textes » de Grist, jamais écrits ici.
+  function cite(k){var t=state.textes&&state.textes[k];return t&&t.reference?' <span class="cite">'+esc(t.reference)+'</span>':""}
+  function det(k){var t=state.textes&&state.textes[k];return t&&t.texte?" "+esc(t.texte):""}
+  function rcite(r){return r&&r.source?' <span class="cite">'+esc(r.source)+'</span>':""}
+  function plain(s){var d=document.createElement("div");d.innerHTML=String(s);Array.prototype.forEach.call(d.querySelectorAll(".cite"),function(n){n.textContent="("+n.textContent+")"});return d.textContent}
+  function applyCites(){Array.prototype.forEach.call(document.querySelectorAll("[data-cite]"),function(el){el.innerHTML=cite(el.dataset.cite)})}
+  function durMax(m){return m%12===0?(m/12)+" an"+(m/12>1?"s":""):m+" mois"}
+  function euros(n){return eur.format(n)+" €"}
+  function short(n){return n>=1e6 ? (n/1e6).toLocaleString("fr-FR",{maximumFractionDigits:2})+" M€" : eur.format(n/1000)+" k€"}
+  function parseAmount(v){var n=parseFloat(String(v).replace(/\s| | /g,"").replace(",","."));return isFinite(n)&&n>0?n:0}
+  function addDays(d,n){var x=new Date(d.getTime());x.setDate(x.getDate()+n);return x}
+  function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+  function dIso(s){return s?fmtS.format(new Date(s+"T00:00:00")):"—"}
+  var today=new Date(); today.setHours(0,0,0,0);
+  $("cible").value = iso(addDays(today,150));
+
+  // ---- Moteur de règles ----
+  function natKey(t){return t==="travaux"?"travaux":"fs"}
+  function pick(param,nature,ach,dateIso){
+    var best=null,bs=-1;
+    state.rules.forEach(function(r){
+      if(r.param!==param) return;
+      if(r.nature!=="tous" && r.nature!==nature) return;
+      if(r.acheteur!=="tous" && r.acheteur!==ach) return;
+      if(!r.debut || r.debut>dateIso) return;
+      if(r.fin && r.fin<dateIso) return;
+      var sc=(r.nature!=="tous"?2:0)+(r.acheteur!=="tous"?1:0);
+      if(sc>bs || (sc===bs && r.debut>best.debut)){best=r;bs=sc}
+    });
+    return best;
+  }
+  function resolve(type,ach,innov,dateIso){
+    var n=natKey(type), o={};
+    Object.keys(PARAMS).forEach(function(p){o[p]=pick(p,n,ach,dateIso)});
+    o.dispEff=o.dispense;
+    if(innov && o.dispense_innovant && (!o.dispense || o.dispense_innovant.valeur>o.dispense.valeur)) o.dispEff=o.dispense_innovant;
+    return o;
+  }
+  function classify(m,R){
+    var disp=R.dispEff?R.dispEff.valeur:0, eu=R.formalise?R.formalise.valeur:Infinity, pub=R.publicite?R.publicite.valeur:Infinity;
+    if(m<disp) return "dispense";
+    if(m>=eu) return "formalise";
+    if(m>=pub) return "mapa90";
+    return "mapa";
+  }
+  function buildPlan(planKey,R,target,anchor){
+    var dur=DUR[planKey], launchSet=false;
+    var steps=PHASES.map(function(ph,i){
+      var base=dur[ph.id], na=base==null;
+      var c=state.custom[planKey+":"+ph.id];
+      var d=na?0:(c!=null?c:base);
+      var min=na?0:minFor(ph.id,planKey,R);
+      if(min&&d<min)d=min;
+      var sub=(SUBS[ph.id]&&(SUBS[ph.id][planKey]||SUBS[ph.id]._))||ph.s;
+      var lance=false; if(!na&&!launchSet&&(ph.id==="pub"||ph.id==="remise")){lance=true;launchSet=true}
+      return {id:ph.id,i:i,t:ph.t,s:sub,c:ph.c,d:d,min:min,na:na,key:ph.key||(min?1:0),lance:lance,after:ph.after};
+    });
+    var exec=steps[steps.length-1];
+    var before=steps.slice(0,-1).reduce(function(a,s){return a+s.d},0);
+    var notifEnd=anchor==="exec"?addDays(target,-exec.d):target;
+    var start=addDays(notifEnd,-before), cur=start, launch=start;
+    steps.forEach(function(s){s.b=cur;s.e=addDays(cur,s.d);if(s.lance)launch=cur;cur=s.e});
+    return {steps:steps,total:before+exec.d,before:before,start:start,launch:launch,notif:notifEnd,exec:exec.e};
+  }
+
+  // ---- Lots ----
+  state.lots=[{nom:"Gros œuvre",montant:"80 000"},{nom:"Plomberie",montant:"28 000"},{nom:"Peinture",montant:"12 000"}];
+  function drawLots(){
+    $("lotsList").innerHTML=state.lots.map(function(l,i){
+      return '<div class="lot"><input id="lot-nom-'+i+'" data-i="'+i+'" data-f="nom" value="'+esc(l.nom)+'" aria-label="Intitulé du lot '+(i+1)+'" placeholder="Lot '+(i+1)+'">'+
+        '<input id="lot-mt-'+i+'" class="num" inputmode="numeric" data-i="'+i+'" data-f="montant" value="'+esc(l.montant)+'" aria-label="Montant HT du lot '+(i+1)+'" placeholder="Montant HT">'+
+        '<button type="button" data-del="'+i+'" aria-label="Retirer le lot '+(i+1)+'">×</button></div>';
+    }).join("");
+  }
+  function syncAlloti(){
+    var on=$("alloti").checked; $("lotsBox").hidden=!on; $("montant").readOnly=on;
+    $("montantHint").textContent=on?"Somme des lots, calculée automatiquement.":"Valeur totale reconductions et options comprises, pour l'ensemble des prestations homogènes."; $("montantCite").hidden=on;
+    if(on){var t=state.lots.reduce(function(a,l){return a+parseAmount(l.montant)},0); $("montant").value=t?eur.format(t):"";}
+  }
+  function analyseLots(m,R,zone){
+    var disp=R.dispense?R.dispense.valeur:0, mapaLot=R.mapa_petit_lot?R.mapa_petit_lot.valeur:0, pct=R.part_petits_lots?R.part_petits_lots.valeur:0;
+    var pool=m*pct/100, used=0;
+    var lots=state.lots.map(function(l,i){return {i:i,nom:l.nom||("Lot "+(i+1)),v:parseAmount(l.montant),reg:"marche"}});
+    lots.slice().sort(function(a,b){return a.v-b.v}).forEach(function(l){
+      if(!l.v||zone==="dispense") return;
+      var canDisp=l.v<disp, canMapa=zone==="formalise"&&l.v<mapaLot;
+      if((canDisp||canMapa)&&used+l.v<=pool){l.reg=canDisp?"dispense":"mapa";used+=l.v}
+    });
+    return {lots:lots,pool:pool,used:used,pct:pct,disp:disp,mapaLot:mapaLot,rules:[R.mapa_petit_lot,R.part_petits_lots].filter(Boolean)};
+  }
+  var REG_LABEL={dispense:"Dispense « petit lot »",mapa:"MAPA « petit lot »",marche:"Procédure du marché"};
+
+  function render(){
+    var type=state.type, ach="apc", innov=$("innov").checked, m=parseAmount($("montant").value);
+    var duree=Math.max(1,parseInt($("duree").value,10)||1), forme=$("forme").value, variante=$("variante").value;
+    var target=$("cible").value?new Date($("cible").value+"T00:00:00"):addDays(today,150);
+    $("vObj").textContent=$("objet").value.trim()||"Objet non renseigné";
+    applyCites();
+
+    if(!state.rules.length){
+      state.last=null;
+      var st=$("stamp"); st.className="stamp z-vide"; st.innerHTML="<big>—</big><small>table vide</small>";
+      $("vTitle").textContent=state.dbState==="loading"?"Chargement de la table des règles…":"Aucune règle disponible";
+      $("vText").textContent={off:"Ce widget doit être ajouté dans Grist (widget personnalisé) et lié à la table des règles.",nomap:"Dans le panneau du widget, associez les colonnes de la table : paramètre, valeur, début, etc.",loading:"",ready:"La table liée ne contient aucune règle exploitable : vérifiez les noms de paramètres et les dates de début."}[state.dbState]||"";
+      ["facts","applied","pub","alerts","plan","ticks","bar"].forEach(function(id){$(id).innerHTML=""});
+      $("vRef").textContent=""; $("marker").textContent=""; $("startLine").textContent="";
+      renderRules(); return;
+    }
+
+    // Itération : les seuils dépendent de la date de lancement, qui dépend du planning, qui dépend de la procédure.
+    var ref=iso(target), R, zone, planKey, P;
+    for(var k=0;k<5;k++){
+      R=resolve(type,ach,innov,ref); zone=classify(m,R);
+      planKey= zone==="formalise"?variante:zone;
+      P=buildPlan(planKey,R,target,$("ancre").value);
+      var nref=iso(P.launch); if(nref===ref) break; ref=nref;
+    }
+    state.refDate=ref;
+    var disp=R.dispEff?R.dispEff.valeur:0, eu=R.formalise?R.formalise.valeur:0, pubS=R.publicite?R.publicite.valeur:0;
+    var pubTxt=R.publicite?euros(pubS)+" HT":"le seuil de publicité obligatoire";
+    var euTxt=R.formalise?"le seuil européen de "+euros(eu)+" HT":"le seuil européen";
+    var innovD=innov&&R.dispEff===R.dispense_innovant;
+
+    var V={
+      dispense:{stamp:"Dispense",sub:innovD?"achat innovant":"sans publicité",title:"Marché sans publicité ni mise en concurrence préalables",
+        text:"Le montant est sous le seuil de dispense de "+euros(disp)+" HT"+(innovD?" applicable aux achats innovants":"")+". Choisissez une offre pertinente, faites une bonne utilisation des deniers publics et ne contractez pas systématiquement avec le même opérateur."},
+      mapa:{stamp:"MAPA",sub:"publicité libre",title:"Procédure adaptée, publicité libre",
+        text:"Entre le seuil de dispense et "+pubTxt+" : modalités de publicité et de mise en concurrence adaptées à l'objet, au montant et au secteur économique."},
+      mapa90:{stamp:"MAPA",sub:"publicité obligatoire",title:"Procédure adaptée avec publicité obligatoire",
+        text:"À partir de "+pubTxt+" et sous "+euTxt+" : avis au BOAMP ou dans un journal d'annonces légales"+rcite(R.publicite)+", documents de la consultation sur le profil d'acheteur"+rcite(R.dematerialisation)+"."},
+      formalise:{stamp:{aoo:"AO ouvert",aor:"AO restreint",pn:"Négociation",dc:"Dialogue"}[variante],sub:"procédure formalisée",title:"Procédure formalisée",
+        text:"Le montant atteint "+euTxt+". "+({aoo:"Appel d'offres ouvert",aor:"Appel d'offres restreint",pn:"Procédure avec négociation, réservée aux cas limitativement prévus"+cite("pn_cas"),dc:"Dialogue compétitif, réservé aux cas limitativement prévus"+cite("dc_cas")}[variante])+" : avis de marché au BOAMP et au JOUE, délais minimaux réglementaires, délai de suspension avant signature."}
+    }[zone];
+    var st=$("stamp"); st.className="stamp z-"+zone;
+    st.innerHTML="<big>"+V.stamp+"</big><small>"+V.sub+"</small>";
+    $("vTitle").textContent=V.title; $("vText").innerHTML=V.text;
+    $("vRef").textContent="Règles appréciées au "+dIso(ref)+", date de lancement de la consultation";
+
+    var annual=m*12/duree;
+    var next = zone==="dispense"?disp:(zone!=="formalise"?eu:null);
+    var facts=[["Montant HT",euros(m)],["Équivalent annuel",euros(Math.round(annual))],["Seuil de dispense",disp?euros(disp):"—"],["Seuil européen",eu?euros(eu):"—"]];
+    if(next) facts.push(["Marge sous le seuil suivant",euros(Math.round(next-m))]);
+    $("facts").innerHTML=facts.map(function(f){return '<div class="fact"><span>'+f[0]+'</span><b>'+f[1]+'</b></div>'}).join("");
+
+    var used=[R.dispEff,R.publicite,R.formalise];
+    if(zone==="formalise"){({aoo:["delai_aoo"],aor:["delai_aor_cand","delai_aor_off"],pn:["delai_pn_cand","delai_pn_off"],dc:["delai_dc_cand"]}[variante]).concat(["standstill"]).forEach(function(k){if(R[k])used.push(R[k])})}
+    var seen={};
+    $("applied").innerHTML=used.filter(function(r){if(!r||seen[r.id])return false;seen[r.id]=1;return true}).map(function(r){
+      return "<div>"+esc(PARAMS[r.param].l)+" : <b>"+fmtVal(r)+"</b> · "+esc(r.source||"source non renseignée")+"</div>";
+    }).join("");
+
+    // Échelle
+    var lo=10000, hi=type==="travaux"?2e7:1e6;
+    function pos(v){v=Math.min(Math.max(v,lo),hi);return (Math.log(v)-Math.log(lo))/(Math.log(hi)-Math.log(lo))*100}
+    var p1=pos(disp||lo), p2=pos(eu||hi);
+    $("bar").innerHTML='<div style="width:'+p1+'%;background:var(--ok)"></div><div style="width:'+Math.max(p2-p1,0)+'%;background:var(--mid)"></div><div style="flex:1;background:var(--hi)"></div>';
+    var ticks=[]; if(disp)ticks.push([disp,short(disp)]); if(eu)ticks.push([eu,short(eu)]);
+    if(pubS>disp && pubS<eu) ticks.push([pubS,short(pubS)]);
+    $("ticks").innerHTML=ticks.map(function(t){return '<div class="tick" style="left:'+pos(t[0])+'%">'+t[1]+'</div>'}).join("");
+    var mk=$("marker"); mk.style.left=Math.min(Math.max(pos(m||lo),6),94)+"%";
+    mk.textContent = m>hi ? "> "+short(hi) : (m? short(m) : "—");
+
+    // Publicité et délais : délais, notes et références viennent des lignes de règles ; le reste de la table « Textes »
+    function dj(r){return r?r.valeur+" j":"— j"}
+    function fx(r){return (r&&r.note?" "+esc(r.note)+".":"")+rcite(r)}
+    var DELAI_TXT={
+      aoo:dj(R.delai_aoo)+" min. à compter de l'envoi de l'avis."+fx(R.delai_aoo),
+      aor:dj(R.delai_aor_cand)+" min. pour les candidatures."+fx(R.delai_aor_cand)+" Puis "+dj(R.delai_aor_off)+" min. pour les offres à compter de l'invitation."+fx(R.delai_aor_off),
+      pn:dj(R.delai_pn_cand)+" min. pour les candidatures."+fx(R.delai_pn_cand)+" Puis "+dj(R.delai_pn_off)+" min. pour les offres initiales à compter de l'invitation."+fx(R.delai_pn_off)+det("pn_negociation")+cite("pn_negociation"),
+      dc:dj(R.delai_dc_cand)+" min. pour les candidatures."+fx(R.delai_dc_cand)+" Délai des offres finales à fixer de façon raisonnable à la clôture du dialogue."
+    };
+    var dm=R.dematerialisation;
+    var AVANT="Notification sans délai du rejet à chaque candidat évincé."+det("rejet_non_retenus")+" Pas de délai de suspension obligatoire."+cite("rejet_non_retenus");
+    var pub={
+      dispense:[["Publicité","Aucune obligation."],["Mise en concurrence","Non obligatoire ; trois devis restent une bonne pratique."],["Délais","Aucun délai réglementaire."],["Traçabilité","Conserver la trace du choix de l'offre."]],
+      mapa:[["Publicité","Libre et adaptée : profil d'acheteur (PLACE), sollicitation directe d'entreprises, presse spécialisée."],["Délai de remise","Raisonnable, sans minimum réglementaire ; 15 j est un usage courant."],["Dématérialisation","Si un avis est publié, documents de la consultation gratuitement sur le profil d'acheteur"+(dm?" à partir de "+euros(dm.valeur)+" HT":"")+"."+rcite(dm)],["Avant signature",AVANT]],
+      mapa90:[["Publicité","Avis au BOAMP ou dans un JAL ; publication complémentaire au JOUE ou en presse spécialisée si nécessaire."+rcite(R.publicite)],["Délai de remise","Raisonnable ; prévoir au moins 3 semaines à ce niveau de montant."],["Dématérialisation","Documents de la consultation gratuitement sur le profil d'acheteur ; échanges par voie électronique."+rcite(dm)],["Avant signature",AVANT]],
+      formalise:[["Publicité","Avis de marché au BOAMP et au JOUE."],["Délai de remise",DELAI_TXT[variante]],["Suspension",dj(R.standstill)+" entre l'envoi des lettres de rejet et la signature."+fx(R.standstill)],["Après signature","Avis d'attribution et publication des données essentielles."+det("avis_attribution")+cite("avis_attribution")]]
+    }[zone];
+
+    $("pub").innerHTML=pub.map(function(r){return "<div><dt>"+r[0]+"</dt><dd>"+r[1]+"</dd></div>"}).join("");
+
+    // Vigilance
+    var al=[], dmax=R.duree_max_ac?R.duree_max_ac.valeur:0;
+    if(!m) al.push(["warn","Saisissez un montant estimé hors taxes."]);
+    ["dispense","publicite","formalise"].forEach(function(p){if(!R[p]) al.push(["warn","Aucune règle « "+PARAMS[p].l+" » en vigueur au "+dIso(ref)+" pour ce cas : complétez la table."])});
+    if(dmax && forme==="ac" && duree>dmax) al.push(["warn","Un accord‑cadre ne peut excéder "+durMax(dmax)+", sauf cas exceptionnel dûment justifié."+rcite(R.duree_max_ac)]);
+    if(dmax && forme==="mo" && duree>dmax) al.push(["info","Durée longue pour un marché ordinaire : la justifier au regard de la nature des prestations et de la concurrence."]);
+    if(next && m && (next-m)/next<0.1) al.push(["warn","Le montant est à moins de 10 % du seuil de "+euros(next)+". Sécurisez l'estimation ou appliquez la procédure supérieure."]);
+    // Changement de règle entre aujourd'hui et la date de lancement
+    var Rnow=resolve(type,ach,innov,iso(today)), zNow=classify(m,Rnow);
+    if(zNow!==zone) al.push(["info","La procédure change selon la date de lancement : lancée aujourd'hui, la consultation relèverait de « "+{dispense:"dispense",mapa:"MAPA",mapa90:"MAPA avec publicité",formalise:"procédure formalisée"}[zNow]+" ». Ne lancez pas avant l'entrée en vigueur de la nouvelle règle si vous comptez sur elle."]);
+    var nextRule=state.rules.filter(function(r){return (r.param==="dispense"||(innov&&r.param==="dispense_innovant")||r.param==="formalise")&&(r.nature==="tous"||r.nature===natKey(type))&&(r.acheteur==="tous"||r.acheteur===ach)&&r.debut>ref}).sort(function(a,b){return a.debut<b.debut?-1:1})[0];
+    if(nextRule) al.push(["info","Une règle future est déjà inscrite : "+PARAMS[nextRule.param].l.toLowerCase()+" à "+euros(nextRule.valeur)+" à compter du "+dIso(nextRule.debut)+"."]);
+    if(innov) al.push(["info","Achat innovant : justifier le caractère innovant au dossier."+det("innovant_lots")+cite("innovant_lots")]);
+    if(zone==="formalise" && variante==="pn") al.push(["warn","Procédure avec négociation : recours limité à des cas strictement énumérés."+det("pn_cas")+cite("pn_cas")+" Motivez le choix dans le rapport de présentation."]);
+    if(zone==="formalise" && variante==="dc") al.push(["warn","Dialogue compétitif : mêmes cas de recours que la procédure avec négociation."+cite("dc_cas")+" Procédure lourde, adaptée aux projets complexes ; prévoir une éventuelle prime aux participants"+cite("dc_prime")+" et motiver le choix dans le rapport de présentation."]);
+    if(zone!=="formalise" && (variante==="pn"||variante==="dc")) al.push(["info","Sous le seuil européen, la procédure adaptée permet déjà de négocier si le règlement de consultation le prévoit : le choix d'une procédure formalisée est sans objet."]);
+    if(zone==="dispense") al.push(["info","Vérifiez l'absence de fractionnement : la computation porte sur l'ensemble des prestations homogènes, sur toute la durée."+cite("fractionnement")]);
+    if(zone==="formalise") al.push(["info","Allotissement obligatoire sauf justification."+cite("allotissement")]);
+    $("alerts").innerHTML=al.map(function(a){return '<div class="alert'+(a[0]==="info"?" info":"")+'">'+a[1]+"</div>"}).join("");
+
+    // Rétroplanning
+    $("plan").innerHTML=P.steps.map(function(s){
+      if(s.na) return '<tr class="na"><td><strong>'+s.t+'</strong><span class="sub">Sans objet pour cette procédure</span></td><td class="d">—</td><td class="d">—</td><td class="d">—</td><td></td></tr>';
+      var off=(s.b-P.start)/864e5/P.total*100, w=s.d/P.total*100;
+      var cls=[s.key?"key":"",s.after?"after":""].join(" ").trim();
+      return '<tr'+(cls?' class="'+cls+'"':'')+'><td><strong>'+s.t+'</strong>'+(s.min?' <span class="lock">min. '+s.min+' j</span>':'')+(s.lance?' <span class="launch">lancement</span>':'')+'<span class="sub">'+s.s+cite(s.c)+'</span></td>'+
+        '<td><input type="number" id="d-'+planKey+'-'+s.id+'" data-k="'+planKey+':'+s.id+'" min="'+(s.min||0)+'" value="'+s.d+'" aria-label="Durée en jours : '+s.t+'"></td>'+
+        '<td class="d">'+fmtD.format(s.b)+'</td><td class="d">'+fmtD.format(s.e)+'</td>'+
+        '<td><div class="gantt"><span style="left:'+off+'%;width:'+Math.max(w,1)+'%"></span></div></td></tr>';
+    }).join("");
+    var LA=null;
+    if($("alloti").checked && state.lots.length){
+      LA=analyseLots(m,R,zone);
+      var procLabel={dispense:"dispense",mapa:"MAPA",mapa90:"MAPA",formalise:"procédure formalisée"}[zone];
+      $("lotsRes").innerHTML=LA.lots.map(function(l){
+        var lab=l.reg==="marche"?"Procédure du marché ("+procLabel+")":REG_LABEL[l.reg];
+        return '<tr><td>'+esc(l.nom)+'</td><td class="d">'+(l.v?euros(l.v):"—")+'</td><td class="d">'+(m&&l.v?(l.v/m*100).toFixed(1).replace(".",",")+" %":"—")+'</td><td><span class="reg reg-'+l.reg+'">'+lab+'</span></td></tr>';
+      }).join("");
+      var pc=LA.pool?Math.min(LA.used/LA.pool*100,100):0;
+      $("lotsNote").innerHTML=(zone==="dispense"?"Le marché entier relève de la dispense : le régime des petits lots est sans objet.":
+        '<div class="pool"><span style="width:'+pc+'%"></span></div>Enveloppe « petits lots » : '+LA.pct+' % de '+euros(m)+', soit <b>'+euros(Math.round(LA.pool))+'</b> ; utilisée par la proposition : <b>'+euros(LA.used)+'</b>. '+
+        'Seuils par lot : dispense sous '+euros(LA.disp)+(zone==="formalise"?', MAPA sous '+euros(LA.mapaLot):'')+'. Les plus petits lots sont retenus en premier ; l\'acheteur reste libre de son choix dans la limite de l\'enveloppe.');
+      if(zone!=="dispense") LA.rules.forEach(function(x){if(used.indexOf(x)<0)used.push(x)});
+      var sumL=LA.lots.reduce(function(a,l){return a+l.v},0);
+      if(LA.lots.some(function(l){return !l.v})) al.push(["warn","Un ou plusieurs lots n'ont pas de montant : renseignez-les pour fiabiliser le calcul."]);
+      if(zone!=="dispense" && LA.used===0 && sumL) al.push(["info","Aucun lot ne peut bénéficier du régime des petits lots dans l'enveloppe de "+LA.pct+" %."]);
+      $("alerts").innerHTML=al.map(function(a){return '<div class="alert'+(a[0]==="info"?" info":"")+'">'+a[1]+"</div>"}).join("");
+      var seen2={};
+      $("applied").innerHTML=used.filter(function(x){if(!x||seen2[x.id])return false;seen2[x.id]=1;return true}).map(function(x){
+        return "<div>"+esc(PARAMS[x.param].l)+" : <b>"+fmtVal(x)+"</b> · "+esc(x.source||"source non renseignée")+"</div>";}).join("");
+    }
+    $("lotsPanel").hidden=!LA;
+    state.last={zone:zone,lotsA:LA,V:V,ref:ref,P:P,facts:facts,pub:pub,alerts:al.map(function(a){return a[1]}),
+      applied:used.filter(function(r,i,a){return r&&a.indexOf(r)===i}),
+      inputs:{objet:$("objet").value.trim(),type:type,ach:ach,innov:innov,m:m,duree:duree,forme:forme,target:target}};
+    var late=P.start<today, days=Math.round((P.start-today)/864e5);
+    $("startLine").innerHTML = "Durée jusqu'à la notification : <strong>"+P.before+" j</strong>, soit environ "+(P.before/30.4).toFixed(1).replace(".",",")+" mois. "+
+      (late ? '<span style="color:var(--warn)">Le travail préparatoire aurait dû commencer le <strong>'+fmtD.format(P.start)+"</strong>, il y a "+(-days)+" j : décalez la date cible ou réduisez certaines phases.</span>"
+            : "Travail préparatoire au plus tard le <strong>"+fmtD.format(P.start)+"</strong> (dans "+days+" j), lancement de la consultation le <strong>"+fmtD.format(P.launch)+"</strong>, ")+
+      " notification le <strong>"+fmtD.format(P.notif)+"</strong>, début d'exécution le <strong>"+fmtD.format(P.exec)+"</strong>.";
+    renderRules();
+  }
+
+  // ---- Table des règles ----
+  function status(r){var ref=state.refDate||iso(today); if(r.debut>ref) return "next"; if(r.fin && r.fin<ref) return "past"; return "on"}
+  function renderRules(){
+    var wrap=$("rulesWrap"), st=$("rulesStatus");
+    if(state.dbState==="loading"){wrap.innerHTML='<div class="empty">Chargement de la table…</div>';st.textContent="";return}
+    if(state.dbState==="off"){wrap.innerHTML='<div class="empty">Aucune table Grist liée. Ajoutez ce widget dans Grist et choisissez la table des règles.</div>';return}
+    if(state.dbState==="nomap"){wrap.innerHTML='<div class="empty">Colonnes non associées : ouvrez le panneau du widget dans Grist et associez chaque colonne.</div>';return}
+    st.textContent="Les règles se modifient directement dans la table Grist liée.";
+    if(state.textesMissing) st.textContent+=" Table « Textes » introuvable : les références juridiques ne s'affichent pas.";
+    if(state.ignored) st.textContent+=" "+state.ignored+" ligne(s) ignorée(s) : paramètre ou nature inconnus, valeur ou date de début manquante.";
+    if(!state.rules.length){wrap.innerHTML='<div class="empty">Aucune règle exploitable dans la table liée.</div>';return}
+    var showPast=$("showPast").checked;
+    var html='<table class="rules"><thead><tr><th>Champ</th><th>Valeur</th><th>Du</th><th>Au</th><th>Source</th><th>Statut</th></tr></thead><tbody>';
+    Object.keys(PARAMS).forEach(function(p){
+      var rows=state.rules.filter(function(r){return r.param===p && (showPast||status(r)!=="past")}).sort(function(a,b){return a.nature===b.nature?(a.acheteur===b.acheteur?(a.debut<b.debut?-1:1):(a.acheteur<b.acheteur?-1:1)):(a.nature<b.nature?-1:1)});
+      if(!rows.length) return;
+      html+='<tr class="grp"><td colspan="6">'+PARAMS[p].l+'</td></tr>';
+      rows.forEach(function(r){
+        var s=status(r);
+        html+='<tr class="'+(s==="past"?"past":"")+'"><td>'+NATURES[r.nature]+'</td>'+
+          '<td class="d">'+fmtVal(r)+'</td><td class="d">'+dIso(r.debut)+'</td><td class="d">'+(r.fin?dIso(r.fin):"en cours")+'</td>'+
+          '<td>'+esc(r.source)+(r.note?'<span class="sub">'+esc(r.note)+'</span>':'')+'</td>'+
+          '<td><span class="pill p-'+s+'">'+{on:"En vigueur",past:"Abrogée",next:"À venir"}[s]+'</span></td></tr>';
+      });
+    });
+    html+='</tbody></table>';
+    wrap.innerHTML=html;
+    var hidden=state.rules.filter(function(r){return status(r)==="past"}).length;
+    if(!showPast && hidden) st.textContent+=" "+hidden+" règle(s) abrogée(s) masquée(s).";
+  }
+
+  $("showPast").addEventListener("change",renderRules);
+
+  // ---- Formulaire ----
+  $("type").addEventListener("click",function(e){
+    var b=e.target.closest("button"); if(!b) return;
+    state.type=b.dataset.v;
+    Array.prototype.forEach.call(this.children,function(x){x.setAttribute("aria-pressed",x===b?"true":"false")});
+    render();
+  });
+  ["duree","forme","variante","cible","ancre","objet","innov"].forEach(function(id){$(id).addEventListener("input",render)});
+  $("innov").addEventListener("change",render);
+  $("montant").addEventListener("input",render);
+  $("alloti").addEventListener("change",function(){drawLots();syncAlloti();render()});
+  $("addLot").addEventListener("click",function(){state.lots.push({nom:"",montant:""});drawLots();syncAlloti();render();var el=$("lot-nom-"+(state.lots.length-1));if(el)el.focus()});
+  $("lotsList").addEventListener("input",function(e){var t=e.target;if(t.dataset.i==null)return;state.lots[+t.dataset.i][t.dataset.f]=t.value;syncAlloti();render()});
+  $("lotsList").addEventListener("focusout",function(e){var t=e.target;if(t.dataset.f==="montant"){var n=parseAmount(t.value);if(n){t.value=eur.format(n);state.lots[+t.dataset.i].montant=t.value}}});
+  $("lotsList").addEventListener("click",function(e){var b=e.target.closest("button[data-del]");if(!b)return;state.lots.splice(+b.dataset.del,1);drawLots();syncAlloti();render()});
+  $("montant").addEventListener("blur",function(){var n=parseAmount(this.value);if(n)this.value=eur.format(n)});
+  $("plan").addEventListener("change",function(e){
+    var t=e.target; if(!t.dataset.k) return;
+    var v=parseInt(t.value,10); if(!isFinite(v)||v<0) v=0;
+    state.custom[t.dataset.k]=v; render();
+  });
+  $("f").addEventListener("submit",function(e){e.preventDefault()});
+  drawLots();
+  render();
+
+  // ---- Fiche PDF ----
+  // Les polices standard du PDF ne couvrent que le jeu Windows-1252 : on normalise les espaces et tirets insécables.
+  function clean(s){return plain(s==null?"":s).replace(/[  ]/g," ").replace(/‑/g,"-").replace(/[→]/g,"->")}
+  async function makePdf(){
+    var L=state.last, btn=$("pdfBtn"), msg=$("pdfMsg");
+    if(!L){msg.textContent="Le calcul n'est pas prêt : la table des règles doit être chargée.";return}
+    if(!window.jspdf||!window.jspdf.jsPDF){msg.textContent="Le générateur PDF n'a pas pu se charger. Rechargez la page.";return}
+    btn.disabled=true; btn.textContent="Génération…";
+    try{
+      var doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}), W=210, M=16, y=18;
+      var ink=[22,32,46], muted=[90,102,120], accent=[43,76,140];
+      var zc={dispense:[47,122,85],mapa:[160,103,15],mapa90:[160,103,15],formalise:[91,63,168]}[L.zone];
+      function txt(s,size,style,color,x,maxW){doc.setFont("helvetica",style||"normal");doc.setFontSize(size);doc.setTextColor.apply(doc,color||ink);
+        var lines=doc.splitTextToSize(clean(s),maxW||W-2*M);doc.text(lines,x||M,y);y+=lines.length*size*0.42+1.5;}
+      function need(h){if(y+h>282){doc.addPage();y=18}}
+      function section(t){need(14);y+=3;doc.setDrawColor.apply(doc,ink);doc.setLineWidth(0.3);doc.line(M,y-4,W-M,y-4);txt(t,12,"bold",ink);y+=1}
+
+      txt("FICHE DE PROCÉDURE",8,"bold",muted);
+      txt(L.inputs.objet||"Objet non renseigné",16,"bold",ink);
+      txt("Établie le "+fmtS.format(new Date())+" · règles appréciées au "+dIso(L.ref)+" (date de lancement de la consultation)",9,"normal",muted);
+      y+=3;
+      // Visa
+      need(26);
+      doc.setDrawColor.apply(doc,zc);doc.setLineWidth(0.8);doc.roundedRect(M,y,52,20,2,2);
+      doc.setFont("helvetica","bold");doc.setFontSize(14);doc.setTextColor.apply(doc,zc);doc.text(clean(L.V.stamp),M+26,y+9,{align:"center"});
+      doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.text(clean(L.V.sub.toUpperCase()),M+26,y+15,{align:"center"});
+      var y0=y; y+=5; txt(L.V.title,12,"bold",ink,M+58,W-2*M-58); txt(L.V.text,9,"normal",muted,M+58,W-2*M-58); y=Math.max(y,y0+24);
+
+      section("Données du besoin");
+      var I=L.inputs;
+      doc.autoTable({startY:y,margin:{left:M,right:M},theme:"plain",styles:{fontSize:9,cellPadding:1.5,textColor:ink},columnStyles:{0:{textColor:muted,cellWidth:55}},
+        body:[["Nature",{fournitures:"Fournitures",services:"Services",travaux:"Travaux"}[I.type]+(I.innov?" (achat innovant)":"")],
+          ["Acheteur","État (autorité publique centrale)"],
+          ["Forme",I.forme==="ac"?"Accord-cadre":"Marché ordinaire"],["Durée",I.duree+" mois"]].concat(L.facts).map(function(r){return r.map(clean)})});
+      y=doc.lastAutoTable.finalY+4;
+
+      if(L.lotsA){section("Allotissement");
+        doc.autoTable({startY:y,margin:{left:M,right:M},theme:"striped",headStyles:{fillColor:accent,fontSize:8.5},styles:{fontSize:8.5,cellPadding:1.8},
+          head:[["Lot","Montant HT","Régime proposé"]],body:L.lotsA.lots.map(function(l){return [l.nom,l.v?euros(l.v):"—",REG_LABEL[l.reg]].map(clean)})});
+        y=doc.lastAutoTable.finalY+3; txt("Enveloppe petits lots : "+L.lotsA.pct+" % du total, soit "+euros(Math.round(L.lotsA.pool))+" ; utilisée : "+euros(L.lotsA.used)+".",9,"normal",muted); y+=2;}
+      section("Règles appliquées");
+      doc.autoTable({startY:y,margin:{left:M,right:M},theme:"striped",headStyles:{fillColor:accent,fontSize:8.5},styles:{fontSize:8.5,cellPadding:1.8},
+        head:[["Paramètre","Valeur","En vigueur","Source"]],
+        body:L.applied.map(function(r){return [PARAMS[r.param].l,fmtVal(r),"du "+dIso(r.debut)+(r.fin?" au "+dIso(r.fin):""),r.source||"—"].map(clean)})});
+      y=doc.lastAutoTable.finalY+4;
+
+      section("Publicité et délais");
+      L.pub.forEach(function(r){need(12);txt(r[0].toUpperCase(),7.5,"bold",muted);txt(r[1],9.5,"normal",ink);y+=1});
+
+      if(L.alerts.length){section("Points de vigilance");L.alerts.forEach(function(a){need(10);txt("•  "+a,9.5,"normal",ink,M+2,W-2*M-2)})}
+
+      section("Rétroplanning");
+      doc.autoTable({startY:y,margin:{left:M,right:M},theme:"striped",headStyles:{fillColor:accent,fontSize:8.5},styles:{fontSize:8.5,cellPadding:1.8},
+        columnStyles:{1:{halign:"right",cellWidth:14},2:{cellWidth:26},3:{cellWidth:26}},
+        head:[["Phase","Jours","Début","Fin"]],
+        body:L.P.steps.map(function(s){
+          if(s.na) return [s.t+" (sans objet)","—","—","—"].map(clean);
+          return [s.t+(s.min?" (min. "+s.min+" j)":"")+(s.lance?" - lancement":""),String(s.d),fmtS.format(s.b),fmtS.format(s.e)].map(clean)})});
+      y=doc.lastAutoTable.finalY+4;
+      txt("Durée jusqu'à la notification : "+L.P.before+" jours. Travail préparatoire au plus tard le "+fmtS.format(L.P.start)+", lancement de la consultation le "+fmtS.format(L.P.launch)+", notification le "+fmtS.format(L.P.notif)+", début d'exécution le "+fmtS.format(L.P.exec)+".",9.5,"bold",ink);
+
+      var n=doc.getNumberOfPages();
+      for(var p=1;p<=n;p++){doc.setPage(p);doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor.apply(doc,muted);
+        doc.text("Outil d'aide à la décision - ne remplace pas l'analyse juridique. Seuils et délais issus de la table des règles du calculateur.",M,291);
+        doc.text(p+" / "+n,W-M,291,{align:"right"});}
+
+      var slug=(I.objet||"procedure").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,50)||"procedure";
+      var fname="fiche-procedure-"+slug+".pdf", url=URL.createObjectURL(doc.output("blob"));
+      doc.save(fname);
+      msg.innerHTML='PDF généré. Si rien ne se télécharge, <a href="'+url+'" target="_blank" rel="noopener" download="'+fname+'">cliquez ici</a>.';
+    }catch(e){
+      msg.textContent="La génération du PDF a échoué. Réessayez.";
+    }finally{btn.disabled=false;btn.textContent="Générer le PDF"}
+  }
+  $("pdfBtn").addEventListener("click",makePdf);
+
+  // ---- Connexion à Grist ----
+  function toIso(v){
+    if(v==null||v==="") return "";
+    if(typeof v==="number") return isFinite(v)?new Date(v*1000).toISOString().slice(0,10):"";
+    if(v instanceof Date) return iso(v);
+    var s=String(v).trim(), m;
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+    if((m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/))) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+    return "";
+  }
+  function normNature(v){
+    var s=String(v==null?"":v).trim().toLowerCase();
+    if(s===""||s==="tous"||s==="toutes") return "tous";
+    if(s==="fs"||s==="fournitures"||s==="services"||s==="fournitures et services") return "fs";
+    if(s==="travaux") return "travaux";
+    return null;
+  }
+  function normAcheteur(v){
+    var s=String(v==null?"":v).trim().toLowerCase();
+    return s==="apc"||s==="pa"?s:"tous";
+  }
+  function ingest(list){
+    var out=[], bad=0;
+    list.forEach(function(x,i){
+      var param=String(x.param==null?"":x.param).trim().toLowerCase();
+      var nat=normNature(x.nature), val=typeof x.valeur==="number"?x.valeur:parseAmount(x.valeur), deb=toIso(x.debut);
+      if(!PARAMS[param]||nat===null||!(val>0)||!deb){bad++;return}
+      out.push({id:String(x.id!=null?x.id:"r"+i),param:param,nature:nat,acheteur:normAcheteur(x.acheteur),valeur:val,debut:deb,fin:toIso(x.fin),source:x.source==null?"":String(x.source),note:x.note==null?"":String(x.note)});
+    });
+    state.rules=out; state.ignored=bad;
+  }
+  async function loadTextes(){
+    try{
+      var t=await grist.docApi.fetchTable("Textes"), o={}, cell=function(c,i){return t[c]&&t[c][i]!=null?String(t[c][i]).trim():""};
+      (t.cle||[]).forEach(function(k,i){if(k) o[String(k).trim()]={reference:cell("reference",i),texte:cell("texte",i)}});
+      state.textes=o; state.textesMissing=false;
+    }catch(e){state.textes={}; state.textesMissing=true}
+  }
+  (function(){
+    if(!window.grist||!grist.ready){state.dbState="off";render();return}
+    grist.ready({
+      requiredAccess:"full",
+      columns:[
+        {name:"param",title:"Paramètre",type:"Text,Choice",description:"Clé du paramètre : dispense, dispense_innovant, publicite, formalise, delai_aoo, delai_aor_cand, delai_aor_off, standstill, delai_pn_cand, delai_pn_off, delai_dc_cand, mapa_petit_lot, part_petits_lots, dematerialisation, duree_max_ac"},
+        {name:"nature",title:"Nature",type:"Text,Choice",optional:true,description:"tous, fs (fournitures et services) ou travaux ; vide = tous"},
+        {name:"acheteur",title:"Acheteur",type:"Text,Choice",optional:true,description:"tous, apc (autorités publiques centrales) ou pa ; vide = tous"},
+        {name:"valeur",title:"Valeur",type:"Numeric,Int,Text",description:"Montant en euros HT, nombre de jours, de mois ou pourcentage selon le paramètre"},
+        {name:"debut",title:"En vigueur du",type:"Date,DateTime,Text"},
+        {name:"fin",title:"Au (vide = en cours)",type:"Date,DateTime,Text",optional:true},
+        {name:"source",title:"Source",type:"Text",optional:true},
+        {name:"note",title:"Note",type:"Text",optional:true}
+      ]
+    });
+    grist.onRecords(async function(records){
+      var mapped=grist.mapColumnNames(records);
+      if(!mapped){state.rules=[];state.ignored=0;state.dbState="nomap";render();return}
+      ingest(mapped);
+      await loadTextes();
+      state.dbState="ready"; render();
+    });
+  })();
+})();
+</script>
+
+</body></html>
