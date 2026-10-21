@@ -54,7 +54,7 @@
   <header>
     <h1>Personnalisation de la page</h1>
     <p class="lead">Remplissez les champs ci-dessous : chaque modification est enregistrée dès que vous quittez le champ et la page publique la prend en compte sous 30 secondes. Un champ laissé vide affiche un texte neutre par défaut.</p>
-    <p class="notice"><b>Logos :</b> ce formulaire ne les gère pas. Pour changer un logo, il faut le faire directement dans la table <b>Personnalisation_Page</b> (voir la section « Logos » en bas).</p>
+    <p class="notice"><b>Logos et police Marianne :</b> ce formulaire ne les gère pas. Ils se changent directement dans la table <b>Personnalisation_Page</b> (voir les sections « Logos » et « Police Marianne » en bas).</p>
   </header>
 
   <div class="notice" id="notice" hidden></div>
@@ -179,6 +179,18 @@ const SECTIONS = [
   { col:"Logo_Concepteur", label:"Logo du concepteur", type:"logo",
     ou:"En bas à droite de la page",
     aide:"Même méthode que pour le logo du service acheteur, dans la cellule « Logo_Concepteur » : supprimez l'ancien fichier, puis déposez le nouveau." }
+ ]},
+
+ { titre:"Police Marianne", intro:"Comme les logos, la police ne se gère pas dans ce formulaire : les trois fichiers se déposent directement dans la table « Personnalisation_Page ». Sans eux, la page s'affiche en Arial.", champs:[
+  { col:"Police_Regular", label:"Marianne Regular (texte courant)", type:"font",
+    ou:"Tous les textes courants de la page",
+    aide:"Colonne de type Pièce jointe nommée « Police_Regular » : déposez-y le fichier Marianne-Regular.woff2 (fourni avec le Système de design de l'État). Supprimez l'ancien fichier avant d'en déposer un autre." },
+  { col:"Police_Medium", label:"Marianne Medium (boutons et filtres)", type:"font",
+    ou:"Boutons, filtres et intitulés d'onglets",
+    aide:"Colonne de type Pièce jointe nommée « Police_Medium » : fichier Marianne-Medium.woff2." },
+  { col:"Police_Bold", label:"Marianne Bold (titres et chiffres)", type:"font",
+    ou:"Titres, chiffres clés, noms de villes et mises en gras",
+    aide:"Colonne de type Pièce jointe nommée « Police_Bold » : fichier Marianne-Bold.woff2." }
  ]}
 ];
 
@@ -205,7 +217,7 @@ function buildForm(){
       <div class="fields">${s.champs.map(fieldHtml).join("")}</div>
     </details>`).join("");
   for(const s of SECTIONS) for(const c of s.champs){
-    if(c.type==="logo") continue;
+    if(c.type==="logo"||c.type==="font") continue;
     const el=$(fieldId(c.col));
     el.addEventListener("change",()=>save(c,el));
     el.addEventListener("input",()=>{ $("w-"+fieldId(c.col)).classList.remove("bad"); setStatus(c,"",""); });
@@ -216,8 +228,8 @@ function fieldHtml(c){
       <label for="${id}">${esc(c.label)}</label>
       <span class="where">${esc(c.ou)}</span>
       <span class="help" id="h-${id}">${esc(c.aide)}</span>`;
-  if(c.type==="logo") return `<div class="fld" id="w-${id}">${head}
-      <div class="logo-box"><div class="logo-prev" id="${id}"><span>Aucun logo</span></div></div></div>`;
+  if(c.type==="logo"||c.type==="font") return `<div class="fld" id="w-${id}">${head}
+      <div class="logo-box"><div class="logo-prev" id="${id}"><span>${c.type==="font"?"Aucun fichier":"Aucun logo"}</span></div></div></div>`;
   const ph=c.ex?` placeholder="ex. : ${esc(c.ex)}"`:"";
   let input;
   if(c.type==="area") input=`<textarea id="${id}" rows="3"${ph}></textarea>`;
@@ -254,6 +266,12 @@ function showRecord(rec){
   for(const s of SECTIONS) for(const c of s.champs){
     const id=fieldId(c.col), key=resolveKey(rec,c.col);
     if(c.type==="logo"){ showLogo(c,id,key?rec[key]:null); continue; }
+    if(c.type==="font"){
+      const cell=key?rec[key]:null, ok=Array.isArray(cell)&&cell[0]==="L"&&cell.length>1;
+      $(id).innerHTML=!key?`<span>Colonne « ${esc(c.col)} » absente : ajoutez-la (type Pièce jointe)</span>`
+        :ok?"<span>Fichier présent ✓</span>":"<span>Aucun fichier : la page s'affichera en Arial</span>";
+      continue;
+    }
     const el=$(id), miss=$("m-"+id);
     if(!key){
       el.disabled=true; miss.hidden=false;
@@ -311,3 +329,4 @@ if(inFrame){
 </script>
 </body>
 </html>
+
