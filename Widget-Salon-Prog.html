@@ -1,6 +1,4 @@
 <title>Nos chantiers</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout : panneau de chantier. Grande carte + panneau latéral (ville sélectionnée, groupée par année), puis matrice ville × année. */
 :root{
@@ -14,14 +12,6 @@
   --body:"Source Sans 3","Segoe UI",Roboto,Arial,sans-serif;
   --mono:"IBM Plex Mono",Consolas,"Courier New",monospace;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#11181f; --paper:#18222c; --ink:#e8ecef; --muted:#9aa7b2; --line:#2c3a46;
-  --slate:#9cc0e0; --moe:#6fa8e0; --moe-soft:#1d3247; --trx:#f2c234; --trx-soft:#3a2f0c; --trx-ink:#f7dc8a;
-  --land:#26323c; --land-out:#1a232c; --tint:#5c4d1c; --sea:#141d25; --coast:#5d6f7c; --dep:#3f505d; --town:#7d8a95; --bubble:#9cc0e0; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#11181f; --paper:#18222c; --ink:#e8ecef; --muted:#9aa7b2; --line:#2c3a46;
-  --slate:#9cc0e0; --moe:#6fa8e0; --moe-soft:#1d3247; --trx:#f2c234; --trx-soft:#3a2f0c; --trx-ink:#f7dc8a;
-  --land:#26323c; --land-out:#1a232c; --tint:#5c4d1c; --sea:#141d25; --coast:#5d6f7c; --dep:#3f505d; --town:#7d8a95; --bubble:#9cc0e0; color-scheme:dark}
 html{font-size:calc(16px * var(--zoom,1))}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:1rem;line-height:1.5}
 body.proj{--zoom:1.2}
@@ -284,9 +274,78 @@ header.top #cfgService{font-family:var(--display);font-weight:700;font-size:1.05
 .lot.todo span{color:var(--muted);font-style:italic}
 tr.mrow{cursor:pointer} tr.mrow:hover td{background:color-mix(in srgb,var(--trx-soft) 50%,transparent)} tr.mrow.hl td{background:var(--trx-soft)}
 .mapmsg{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--trx);padding:6px 12px;border-radius:4px;font-size:.85rem;max-width:80%;text-align:center}
+
+/* =====================================================================
+   FORMAT INSTITUTIONNEL (DSFR) : police Marianne (chargée depuis Grist), bleu France, composants sobres.
+   Adaptation manuelle des principes du Système de design de l'État, sans la feuille de style officielle.
+   ===================================================================== */
+:root{color-scheme:light}
+:root,:root[data-theme]{
+ --bg:#ffffff; --paper:#ffffff; --ink:#161616; --muted:#666666; --line:#dddddd;
+ --slate:#000091; --moe:#000091; --moe-soft:#ececfe;
+ --trx:#c3992a; --trx-soft:#fef6e3; --trx-ink:#3a3a3a;
+ --land:#f6f6f6; --land-out:#fbfbfb; --sea:#ffffff; --coast:#929292; --dep:#cecece; --town:#929292; --bubble:#000091;
+ --display:"Marianne",Arial,sans-serif; --body:"Marianne",Arial,sans-serif; --mono:"Marianne",Arial,sans-serif;
+ --ty2:#18753c; --ty3:#6a6af4; --ty4:#ce0500; --ty5:#666666;
+}
+body{font-family:"Marianne",Arial,sans-serif;font-size:1rem;line-height:1.5;color:#161616}
+h1,h2,h3{font-family:"Marianne",Arial,sans-serif;font-weight:700;text-transform:none!important;letter-spacing:0;line-height:1.25}
+.eyebrow,.kpi small,.vtab .vt-n,.vtab .vt-i,.ops-city,.fld label,.ops-fs legend{text-transform:none!important;letter-spacing:0!important;font-family:"Marianne",Arial,sans-serif!important}
+.eyebrow{font-size:.875rem;font-weight:500;color:#666}
+/* bandeau marque */
+.dsfr-band{display:flex;align-items:center;padding:4px 0 14px;border-bottom:1px solid #ddd;margin-bottom:-6px}
+.dsfr-band .logo-plate{background:none;border-radius:0}
+header.top{border-bottom:1px solid #ddd;padding-bottom:24px}
+header.top h1{font-size:2.5rem;text-transform:none;font-weight:700;color:#161616}
+header.top h1 #period{color:#000091}
+header.top #cfgService{font-size:1rem;font-weight:700;color:#000091;border-left:0;padding-left:0;letter-spacing:0}
+header.top p{color:#3a3a3a;font-size:1.125rem}
+.top-right{justify-content:flex-end}
+.kpi b{font-family:"Marianne",Arial,sans-serif;font-size:2rem;color:#000091}
+/* onglets */
+.views{border-bottom:1px solid #ddd;margin-top:0;gap:4px}
+.vtab{background:#e3e3fd;color:#000091;padding:.75rem 1.5rem!important;margin:0!important;border:0!important}
+.vtab+.vtab{padding-left:1.5rem!important}
+.vtab::after{display:none}
+.vtab[aria-selected="true"]{background:#fff;color:#000091;box-shadow:inset 0 2px 0 #000091,inset 1px 0 0 #ddd,inset -1px 0 0 #ddd}
+.vtab .vt-l{font-size:1.125rem;font-weight:700}
+.vtab .vt-i{color:#000091;opacity:.7}
+.vtab .vt-n{font-size:.875rem;font-weight:400;color:#666}
+/* étiquettes et filtres */
+.chip{border:0;background:#eee;color:#161616;border-radius:.25rem;font-size:.875rem;font-weight:500;padding:.25rem .75rem;min-height:1.75rem}
+.chip[aria-pressed="true"]{background:#000091;color:#fff}
+.tag{border-radius:.25rem;font-family:"Marianne",Arial,sans-serif;font-size:.75rem;font-weight:700}
+/* panneaux et tableau */
+.panel,.mx{border-radius:0;border:1px solid #ddd}
+.side h2{font-size:1.75rem}
+.yblock{border-top:2px solid #000091}
+thead th{background:#f6f6f6;border-bottom:2px solid #3a3a3a;font-family:"Marianne",Arial,sans-serif;font-size:1rem;font-weight:700}
+tbody th b,.cs .n,td.tot,th.tot,.opl .am,.bar .y{font-family:"Marianne",Arial,sans-serif;font-weight:700}
+.dep-n{border-radius:.25rem;background:#000091;color:#fff}
+.map .city .halo{fill:#000091;fill-opacity:.14;stroke:#000091}
+.map .city .name{font-weight:700;font-size:15px}
+.map .city.sel .lbl-bg{stroke:#000091}
+/* boutons */
+.contact-btn,.btn.primary,.cta a.contact-btn{background:#000091!important;border:0!important;border-radius:0;color:#fff!important;font-family:"Marianne",Arial,sans-serif;text-transform:none;letter-spacing:0;font-weight:500;font-size:1rem;padding:.5rem 1rem}
+.btn{border:1px solid #000091;color:#000091;border-radius:0;font-family:"Marianne",Arial,sans-serif;text-transform:none;letter-spacing:0;font-weight:500;font-size:1rem}
+/* pied de page */
+.cta{background:#f6f6f6;border-top:2px solid #000091;padding:24px 20px 12px;margin-top:8px}
+.cta h3{font-size:1.125rem;text-transform:none}
+.credit p{font-family:"Marianne",Arial,sans-serif;font-size:1rem;font-weight:700;border-left-color:#000091}
+.fine{color:#666}
+/* fiche contact */
+.fiche-head{background:#000091;background-image:none;border-bottom:0}
+.fiche-head .eyebrow{color:#fff}
+.fiche-head h2{font-size:1.75rem}
+dialog.fiche{border-radius:0}
+.fld input,.fld select,.fld textarea{border:0;border-bottom:2px solid #3a3a3a;border-radius:.25rem .25rem 0 0;background:#eee}
+.vtab .vt-l{text-transform:none!important;letter-spacing:0}
+.contact-btn,.btn{text-transform:none!important}
+
 </style>
 
 <div class="wrap" lang="fr">
+  <div class="dsfr-band"><span class="logo-plate"><img class="logo-dap pending" id="logoAcheteur" alt="Logo du service acheteur"></span></div>
   <header class="top">
     <div>
       <div class="eyebrow" id="cfgService"></div>
@@ -294,7 +353,6 @@ tr.mrow{cursor:pointer} tr.mrow:hover td{background:color-mix(in srgb,var(--trx-
       <p id="cfgSousTitre"></p>
     </div>
     <div class="top-right">
-      <span class="logo-plate"><img class="logo-dap pending" id="logoAcheteur" alt="Logo du service acheteur"></span>
       <div class="kpis" id="kpis"></div>
     </div>
   </header>
@@ -425,7 +483,7 @@ tr.mrow{cursor:pointer} tr.mrow:hover td{background:color-mix(in srgb,var(--trx-
 <script>
 /* =====================================================================
    DONNÉES DE RÉFÉRENCE (intégrées, aucune connexion nécessaire)
-   COMMUNES : communes des 14 départements du ressort de la DISP de Rennes
+   COMMUNES : communes des départements du ressort
      [code INSEE, nom, longitude, latitude, population, "codes postaux", code INSEE du pôle de rattachement]
      Pôle de rattachement : la commune de 20 000 hab. ou plus la plus peuplée à moins de 12 km (vide = autonome).
      Sources : COG et codes postaux (Etalab, découpage administratif), population légale INSEE,
@@ -1017,8 +1075,8 @@ const CFG_COLS={
   Id_Service:["Id_Service_Acheteur","Id_Service"],
   Titre:["Titre_Accroche","Titre"],
   Sous_titre:["Sous_titre"],
-  Terme:["Type_Marchés","Terme"],
-  Libelles_Types:["Libelles_Types_Marchés","Libelles_Types"],
+  Terme:["Type_Marchés","Type_March_s","Terme"],
+  Libelles_Types:["Libelles_Types_Marchés","Libelles_Types_March_s","Libelles_Types"],
   Pret_Titre:["Titre_Bloc_Droite_Bas_Page","Pret_Titre"],
   Pret_Texte:["Texte_Bloc_Droite_Bas_Page","Pret_Texte"],
   Pret_Lien:["Lien_Bloc_Droite_Bas_Page","Pret_Lien"],
@@ -1091,6 +1149,29 @@ async function loadLogos(row){
   }catch(e){ console.warn("Logos indisponibles :",e); for(const L of Object.values(LOGOS)) L.id=null; }
 }
 
+
+/* ===== Police Marianne : pièces jointes de la table Personnalisation_Page (colonnes Police_Regular, Police_Medium, Police_Bold) =====
+   Aucune police n'est dans la page ni chargée depuis un site externe. Sans fichier, la page s'affiche en Arial. */
+const FONTS={400:{cols:["Police_Regular"],id:null},500:{cols:["Police_Medium"],id:null},700:{cols:["Police_Bold"],id:null}};
+async function loadFonts(row){
+  try{
+    const byKey={}; for(const [k,v] of Object.entries(row||{})) byKey[ckey(k)]=v;
+    let acces=null, changed=false;
+    for(const [w,F] of Object.entries(FONTS)){
+      const col=F.cols.find(n=>ckey(n) in byKey);
+      const id=col?attId(byKey[ckey(col)]):null;
+      if(id===F.id) continue;
+      F.id=id; if(!id) continue;
+      acces=acces||await grist.docApi.getAccessToken({readOnly:true});
+      const rep=await fetch(`${acces.baseUrl}/attachments/${id}/download?auth=${encodeURIComponent(acces.token)}`);
+      if(!rep.ok) throw new Error("HTTP "+rep.status);
+      const face=new FontFace("Marianne",await rep.arrayBuffer(),{weight:String(w),style:"normal"});
+      await face.load(); document.fonts.add(face); changed=true;
+    }
+    if(changed&&(DATA.trx||MARKETS.length)) refresh();                    // recalcule les hauteurs avec la nouvelle police
+  }catch(e){ console.warn("Police Marianne indisponible :",e); for(const F of Object.values(FONTS)) F.id=null; }
+}
+
 /* Recherche de la table de contexte dans le document Grist */
 let CFG_STATUS="", FCS_SIG="";
 async function loadGristConfig(){
@@ -1102,7 +1183,7 @@ async function loadGristConfig(){
       return Array.from({length:n},(_,i)=>Object.fromEntries(ks.map(k=>[k,t[k][i]]))); };
     for(const id of ids.slice().sort((a,b)=>pri(a)-pri(b))){
       const t=await grist.docApi.fetchTable(id), keys=Object.keys(t).map(k=>norm(k).replace(/_/g," "));
-      if(!found&&keys.some(k=>/^mail ?service/.test(k))){ setConfig(rowsOf(t)[0]||{}); loadLogos(rowsOf(t)[0]||{}); CFG_STATUS="ok:"+id; found=true; continue; }
+      if(!found&&keys.some(k=>/^mail ?service/.test(k))){ setConfig(rowsOf(t)[0]||{}); loadLogos(rowsOf(t)[0]||{}); loadFonts(rowsOf(t)[0]||{}); CFG_STATUS="ok:"+id; found=true; continue; }
       if(keys.some(k=>/^id ?marche/.test(k))){
         if(keys.some(k=>/^perimetre/.test(k))) mRows=rowsOf(t);
         else if(keys.some(k=>/^(n ?lot|no lot|numero)/.test(k))) lRows=rowsOf(t);
@@ -1283,4 +1364,5 @@ ${v.rs.trim()}`;
   dlg.addEventListener("close",()=>{ if(!done.hidden){ form.reset(); upd(); } });
 })();
 </script>
+
 
