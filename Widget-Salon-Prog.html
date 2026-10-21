@@ -352,6 +352,9 @@ dialog.fiche{border-radius:0}
 .export-msg.err{background:#fff4f4;border-left-color:#ce0500}
 .export-msg a{color:#000091}
 body.proj .export-btn,body.proj .export-msg{display:none}
+
+/* Légende des types (vue d'ensemble) : reste visible en bas du panneau pendant que les barres défilent */
+.side .legend{position:sticky;bottom:-16px;z-index:1;margin:0 -18px -16px;padding:10px 18px 14px;background:var(--paper);border-top:1px solid var(--line);box-shadow:0 -8px 8px -8px rgba(22,22,22,.18)}
 </style>
 
 <div class="wrap" lang="fr">
@@ -956,7 +959,7 @@ function renderSide(){
         <span class="y">${r.y.l}</span>
         <span class="track">${r.parts.map(([t,v])=>`<i class="${tc(t)}" style="width:${v/max*100}%"></i>`).join("")}</span>
         <span class="v tab">${r.yo.length}</span></button>`).join("")}</div>
-      <p class="hint">${TYPES.map(t=>`<span class="tag ${tc(t)}">${esc(t)}</span> ${esc(typeLabel(t))}`).join(" &nbsp; ")}</p>`;
+      <p class="hint legend">${TYPES.map(t=>`<span class="tag ${tc(t)}">${esc(t)}</span> ${esc(typeLabel(t))}`).join(" &nbsp; ")}</p>`;
     return;
   }
   const c=CITIES[state.city], co=ops.filter(o=>o.city===state.city);
@@ -1440,6 +1443,7 @@ ${v.rs.trim()}`;
   dlg.addEventListener("close",()=>{ if(!done.hidden){ form.reset(); upd(); } });
 })();
 </script>
+
 
 
 
