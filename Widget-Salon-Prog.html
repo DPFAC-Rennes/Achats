@@ -342,10 +342,21 @@ dialog.fiche{border-radius:0}
 .vtab .vt-l{text-transform:none!important;letter-spacing:0}
 .contact-btn,.btn{text-transform:none!important}
 
+
+/* Export « version autonome » : icône discrète en haut à droite */
+.export-btn{margin-left:auto;display:grid;place-items:center;width:34px;height:34px;padding:0;background:none;border:1px solid transparent;border-radius:0;color:#666;cursor:pointer;opacity:.6}
+.export-btn:hover,.export-btn:focus-visible{opacity:1;color:#000091;border-color:#ddd}
+.export-btn:focus-visible{outline:2px solid #0a76f6;outline-offset:2px}
+.export-btn:disabled{opacity:.3;cursor:progress}
+.export-msg{font-size:.875rem;background:#f5f5fe;border-left:4px solid #000091;padding:8px 12px;margin-top:-6px;color:#161616}
+.export-msg.err{background:#fff4f4;border-left-color:#ce0500}
+.export-msg a{color:#000091}
+body.proj .export-btn,body.proj .export-msg{display:none}
 </style>
 
 <div class="wrap" lang="fr">
-  <div class="dsfr-band"><span class="logo-plate"><img class="logo-dap pending" id="logoAcheteur" alt="Logo du service acheteur"></span></div>
+  <div class="dsfr-band"><span class="logo-plate"><img class="logo-dap pending" id="logoAcheteur" alt="Logo du service acheteur"></span><button type="button" class="export-btn" id="exportBtn" hidden title="Télécharger une version autonome de cette page (fichier HTML avec les données)" aria-label="Télécharger une version autonome de cette page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16"/></svg></button></div>
+  <div class="export-msg" id="exportMsg" role="status" aria-live="polite" hidden></div>
   <header class="top">
     <div>
       <div class="eyebrow" id="cfgService"></div>
@@ -481,6 +492,8 @@ dialog.fiche{border-radius:0}
 </dialog>
 
 <script>
+/* Gabarit vierge de la page, capturé avant tout remplissage (sert à fabriquer la version autonome). */
+const PAGE_SOURCE="<!doctype html>\n"+document.documentElement.outerHTML;
 /* =====================================================================
    DONNÉES DE RÉFÉRENCE (intégrées, aucune connexion nécessaire)
    COMMUNES : communes des départements du ressort
@@ -497,6 +510,7 @@ const DEPTS = [{"c":"14","n":"Calvados","r":true,"p":[[[-1.12,49.356],[-1.078,49
 const SAMPLE_CFG = null;
 const SAMPLE_FCS = {"m":[],"l":[]};
 const SAMPLE = [];
+const SAMPLE_COLS = null;
 
 /* ===== Outils ===== */
 const DEP_NAME=Object.fromEntries(DEPTS.map(d=>[d.c,d.n]));
@@ -1165,11 +1179,71 @@ async function loadFonts(row){
       acces=acces||await grist.docApi.getAccessToken({readOnly:true});
       const rep=await fetch(`${acces.baseUrl}/attachments/${id}/download?auth=${encodeURIComponent(acces.token)}`);
       if(!rep.ok) throw new Error("HTTP "+rep.status);
-      const face=new FontFace("Marianne",await rep.arrayBuffer(),{weight:String(w),style:"normal"});
+      const buf=await rep.arrayBuffer(); F.buf=buf;
+      const face=new FontFace("Marianne",buf,{weight:String(w),style:"normal"});
       await face.load(); document.fonts.add(face); changed=true;
     }
     if(changed&&(DATA.trx||MARKETS.length)) refresh();                    // recalcule les hauteurs avec la nouvelle police
   }catch(e){ console.warn("Police Marianne indisponible :",e); for(const F of Object.values(FONTS)) F.id=null; }
+}
+
+
+/* ===== Export : version autonome « avec données » =====
+   Le fichier est fabriqué dans le navigateur de la personne qui clique, à partir de ce que le widget a lu dans Grist,
+   puis téléchargé. Rien n'est envoyé ni enregistré ailleurs : le dépôt qui héberge ce widget ne contient jamais de données.
+   Seules les colonnes utilisées par la page sont embarquées ; les fourchettes sont converties en libellés (aucun montant exact). */
+let LAST=null;                                           // dernières opérations lues dans Grist et colonnes associées
+const exportMsg=(html,err)=>{ const m=document.getElementById("exportMsg"); m.innerHTML=html||""; m.hidden=!html; m.classList.toggle("err",!!err); };
+const toDataUrl=blob=>new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=()=>ko(r.error); r.readAsDataURL(blob); });
+const jsonSafe=o=>JSON.stringify(o).replace(/</g,"\\u003c").replace(new RegExp(String.fromCharCode(8232),"g"),"\\u2028").replace(new RegExp(String.fromCharCode(8233),"g"),"\\u2029");
+function keepCols(rows,tests){
+  return (rows||[]).map(r=>{ const o={}, keys=Object.keys(r), nk=k=>norm(k).replace(/_/g," ");
+    const geo=normCP(r[keys.find(k=>/^code ?postal/.test(nk(k)))])||clean(r[keys.find(k=>/^ville/.test(nk(k)))]);
+    for(const k of keys){ const n=nk(k);
+      if(!tests.some(re=>re.test(n))) continue;
+      if(/^adresse/.test(n)&&geo) continue;               // l'adresse ne sert qu'à localiser une commune
+      const v=r[k];
+      o[k]=/^(fourchette|estimation|montant)/.test(n)?(parseBand(v)||""):(v==null||typeof v==="object"?"":v); }
+    return o; });
+}
+async function exportAutonome(){
+  const btn=document.getElementById("exportBtn");
+  if(!LAST){ exportMsg("Les données ne sont pas encore chargées.",true); return; }
+  btn.disabled=true; exportMsg("Préparation du fichier…");
+  try{
+    const C=LAST.cols, recs=LAST.records.map(r=>{ const o={};
+      const geo=(C.cp&&normCP(r[C.cp]))||(C.ville&&clean(r[C.ville]));
+      for(const [f,k] of Object.entries(C)){ if(!k||(f==="adresse"&&geo)) continue;
+        const v=r[k]; o[k]=f==="montant"?(parseBand(v)||""):(v==null||typeof v==="object"?"":v); }
+      return o; });
+    const fcs={ m:keepCols(FCS_RAW.m,[/^id ?marche/,/^intitule/,/^annee/,/^perimetre/,/^(nombre de lots|nb lots|nombre lots)/,/^type/,/^(fourchette|estimation|montant)/,/^allotissement/,/^ref/]),
+                l:keepCols(FCS_RAW.l,[/^id ?marche/,/^(n ?lot|no lot|numero|lot$)/,/^intitule du lot/,/^type d? ?etablissement/,/^etablissement/,/^adresse/,/^code ?postal/,/^ville/]) };
+    const logos={}; for(const [id,L] of Object.entries(LOGOS)) if(L.url) logos[id]=await toDataUrl(await (await fetch(L.url)).blob());
+    const faces=[]; for(const [w,F] of Object.entries(FONTS)) if(F.buf)
+      faces.push('@font-face{font-family:"Marianne";font-weight:'+w+';font-style:normal;src:url('+await toDataUrl(new Blob([F.buf],{type:"font/woff2"}))+') format("woff2")}');
+    const d=new Date(), dateFr=d.toLocaleDateString("fr-FR"), iso=d.toISOString().slice(0,10);
+    let src=PAGE_SOURCE;
+    const sw=(a,b)=>{ if(!src.includes(a)) throw new Error("gabarit inattendu ("+a.slice(0,24)+")"); src=src.replace(a,()=>b); };
+    sw("const SAMPLE"+"_CFG = null;","const SAMPLE"+"_CFG = "+jsonSafe(CFG)+";");
+    sw("const SAMPLE"+'_FCS = {"m":[],"l":[]};',"const SAMPLE"+"_FCS = "+jsonSafe(fcs)+";");
+    sw("const SAMPLE"+" = [];","const SAMPLE"+" = "+jsonSafe(recs)+";");
+    sw("const SAMPLE"+"_COLS = null;","const SAMPLE"+"_COLS = "+jsonSafe(C)+";");
+    src=src.replace(/<title>[\s\S]*?<\/title>/,()=>"<title>"+esc(CFG.Titre||"Programmation")+"</title>");
+    sw("</"+"head>","<scr"+"ipt>window.__STANDALONE=true;window.__GENERATED="+jsonSafe(dateFr)+";window.__LOGOS="+jsonSafe(logos)+";</scr"+"ipt>\n<style id=\"marianne\">"+faces.join("\n")+"</style>\n</"+"head>");
+    const name=(CFG.Titre||"programmation").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"_"+iso+".html";
+    const url=URL.createObjectURL(new Blob([src],{type:"text/html;charset=utf-8"}));
+    const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+    exportMsg("Fichier « "+esc(name)+" » généré ("+Math.round(src.length/1024)+" Ko). S'il ne se télécharge pas : <a href=\""+url+"\" target=\"_blank\" rel=\"noopener\">ouvrir dans un nouvel onglet</a>, puis Enregistrer sous (Ctrl+S).");
+    setTimeout(()=>exportMsg(""),20000);
+  }catch(e){ console.warn("Export impossible :",e); exportMsg("Échec de la génération : "+esc(e&&e.message||e),true); }
+  finally{ btn.disabled=false; }
+}
+/* Version autonome : les logos viennent de la page elle-même, aucune connexion à Grist */
+function standaloneInit(){
+  for(const id of ["logoAcheteur","logoConcepteur"]){ const img=document.getElementById(id), u=(window.__LOGOS||{})[id]; if(!img) continue;
+    if(u){ img.src=u; img.hidden=false; img.classList.remove("pending"); } else img.hidden=true; }
+  setNotice("");
+  if(window.__GENERATED){ const m=document.getElementById("cfgMention"); m.textContent=((m.textContent||"")+" Données arrêtées au "+window.__GENERATED+".").trim(); m.hidden=false; }
 }
 
 /* Recherche de la table de contexte dans le document Grist */
@@ -1220,6 +1294,7 @@ function problemsNotice(){
 }
 function startGrist(){
   grist.ready({requiredAccess:"full", columns:COLS});
+  const eb=document.getElementById("exportBtn"); eb.hidden=false; eb.addEventListener("click",exportAutonome);
   loadGristConfig();
   setInterval(loadGristConfig,30000);                                           // textes modifiés : pris en compte sous 30 s
   grist.onRecords(async (records, mappings)=>{
@@ -1232,14 +1307,14 @@ function startGrist(){
     if(!cols.type) missing.push("Type de marché");
     if(!cols.cp&&!cols.ville) missing.push("Code postal / Ville");
     if(missing.length){ setNotice(`Colonnes non trouvées : <b>${missing.join(", ")}</b>. Associez-les dans le panneau de droite de Grist (onglet « Widget »).`); return; }
-    setData(records, cols);
+    LAST={records,cols}; setData(records, cols);
     const cfgMsg= CFG_STATUS==="acces" ? "Textes par défaut affichés : le widget n'a pas accès à la table <b>Personnalisation_Page</b>. Dans le panneau du widget, réglez le niveau d'accès sur <b>Accès complet au document</b>."
                : CFG_STATUS==="absente" ? "Textes par défaut affichés : aucune table avec une colonne <b>Mail_Service_Achat</b> dans ce document."
                : "";
     setNotice([cfgMsg,problemsNotice()].filter(Boolean).join("<br>"));
   });
 }
-const inFrame=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+const inFrame=!window.__STANDALONE&&(()=>{try{return window.self!==window.top}catch(e){return true}})();
 function loadScript(src){return new Promise((ok,ko)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=ko;document.head.appendChild(s);});}
 if(inFrame){
   setNotice("Chargement des données Grist…");
@@ -1250,7 +1325,8 @@ if(inFrame){
 }else{
   if(SAMPLE_CFG) setConfig(SAMPLE_CFG);
   setFcsData(SAMPLE_FCS.m,SAMPLE_FCS.l);
-  setData(SAMPLE);
+  setData(SAMPLE, SAMPLE_COLS||undefined);
+  if(window.__STANDALONE) standaloneInit(); else
   setNotice(SAMPLE.length?(SAMPLE_CFG?problemsNotice():"Aperçu hors Grist : données d'exemple intégrées à la page."+(PROBLEMS.length?"<br>"+problemsNotice():""))
     :"Cette page est un widget Grist : elle affiche les données lorsqu'elle est ajoutée comme widget personnalisé sur la table des opérations.");
 }
@@ -1364,5 +1440,6 @@ ${v.rs.trim()}`;
   dlg.addEventListener("close",()=>{ if(!done.hidden){ form.reset(); upd(); } });
 })();
 </script>
+
 
 
