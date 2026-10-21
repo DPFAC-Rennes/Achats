@@ -238,6 +238,9 @@ tbody th b .dep-n{margin-right:7px;position:relative;top:-2px}
 /* Service acheteur (en-tête) : plus visible que les autres surtitres */
 header.top #cfgService{font-family:var(--display);font-weight:700;font-size:1.05rem;letter-spacing:.06em;color:var(--ink);display:inline-block;border-left:4px solid var(--trx);padding-left:10px;margin-bottom:6px}
 .credit p b{color:var(--ink);font-weight:700}
+.credit{padding-left:28px}
+.credit p{white-space:pre-line}
+@media (max-width:560px){.credit{padding-left:0}}
 @media (max-width:980px){.top-right{align-items:flex-start}}
 @media (max-width:560px){.logo-dap{height:48px}}
 
@@ -1131,7 +1134,7 @@ function setConfig(row){
   T("cfgPretTitre",CFG.Pret_Titre); T("cfgPretTexte",CFG.Pret_Texte);
   const a=document.getElementById("cfgPretLien"); a.href=CFG.Pret_Lien||"#"; a.textContent=(CFG.Pret_Lien||"").replace(/^https?:\/\/(www\.)?/,"").replace(/\/$/,""); a.hidden=!CFG.Pret_Lien;
   T("cfgContactTexte",CFG.Contact_Texte); T("cfgAsavoir",CFG.Asavoir);
-  T("cfgConcepteur",CFG.Concepteur); T("cfgMention",CFG.Mention);
+  T("cfgConcepteur",CFG.Concepteur); (function(){var e=document.getElementById("cfgConcepteur");if(e&&e.textContent&&e.textContent.indexOf("\n")<0)e.textContent=e.textContent.replace(/ par /,"\npar ");})(); T("cfgMention",CFG.Mention);
   T("cfgFicheSurtitre",CFG.Fiche_Surtitre); T("cfgFicheTexte",CFG.Fiche_Texte);
   T("cfgMailDone",CFG.Mail_Service_Achat);
   document.getElementById("openFiche").href=`mailto:${CFG.Mail_Service_Achat}?subject=${encodeURIComponent(CFG.Mail_Objet||"")}`;
@@ -1443,6 +1446,7 @@ ${v.rs.trim()}`;
   dlg.addEventListener("close",()=>{ if(!done.hidden){ form.reset(); upd(); } });
 })();
 </script>
+
 
 
 
