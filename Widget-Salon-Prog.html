@@ -819,7 +819,9 @@ const myW=lat=>{const s=Math.sin(lat*Math.PI/180);return 0.5-Math.log((1+s)/(1-s
 const VW=760; let ASPECT=1.56, VH=VW/ASPECT;              // le ratio s'adapte à la place disponible (voir fitSide)
 let VIEW={x0:0,y0:0,k:1};
 const P=(lon,lat)=>[(mxW(lon)-VIEW.x0)*VIEW.k,(myW(lat)-VIEW.y0)*VIEW.k];
+let PREV_VIEW=null;
 function computeView(){
+  PREV_VIEW=VIEW;
   const shown=[...new Set(sel().map(o=>o.city))].map(k=>CITIES[k]).filter(c=>c&&c.lat!=null);
   const pts=shown.length?shown:Object.values(CITIES).filter(c=>c.lat!=null);   // filtre vide : toute la page
   let lo0=-4.8,lo1=-1.0,la0=47.25,la1=48.9;                                     // Bretagne par défaut
@@ -832,7 +834,7 @@ function computeView(){
   let cx=(x0+x1)/2, cy=(y0+y1)/2; w*=1.30; h*=1.35;
   cx+=w*0.03;
   if(w/h<ASPECT) w=h*ASPECT; else h=w/ASPECT;
-  VIEW={x0:cx-w/2, y0:cy-h/2, k:VW/w};
+  VIEW={x0:cx-w/2, y0:cy-h/2, k:VW/w, asp:ASPECT};
 }
 
 /* ===== Placement automatique des étiquettes ===== */
@@ -882,7 +884,7 @@ function renderMap(){
   svg.setAttribute("viewBox",`0 0 ${VW} ${VH.toFixed(1)}`);
   const ops=sel();
   const path=rings=>rings.map(r=>"M"+r.map(([lo,la])=>P(lo,la).map(v=>v.toFixed(1)).join(",")).join("L")+"Z").join("");
-  let h=`<g class="drawn"><rect class="sea" width="${VW}" height="${VH}"/>`;
+  let h=`<g id="world"><g class="drawn"><rect class="sea" x="-3000" y="-3000" width="${VW+6000}" height="${VH+6000}"/>`;
   for(const d of DEPTS){
     h+=`<path class="land${d.r?"":" out"}" d="${path(d.p)}"><title>${esc(d.n)} (${d.c})</title></path>`;   // couleur neutre : seules les bulles portent l'information
   }
@@ -939,7 +941,21 @@ function renderMap(){
   for(const [n,lo,la] of [["MANCHE",-3.0,48.92],["OCÉAN ATLANTIQUE",-4.85,47.32]]){
     const [x,y]=P(lo,la), b={x,y:y-14,w:n.length*11.5,h:18};
     if(inView(x,y,10)&&b.x+b.w<VW&&!taken.some(t=>overlap(b,t)>0)) lab+=`<text class="seaname" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${n}</text>`; }
-  svg.innerHTML=h+lab+"</g>"+bub;
+  // Recentrage fluide : la carte est redessinée à sa nouvelle position, puis animée depuis l'ancien cadrage (un seul transform, aucun recalcul par image)
+  let cur=null; try{ const ow=svg.querySelector("#world"); if(ow&&ow.getAnimations().length) cur=new DOMMatrix(getComputedStyle(ow).transform); }catch(e){}
+  svg.innerHTML=h+lab+"</g>"+bub+"</g>";
+  const pv=PREV_VIEW; PREV_VIEW=null;
+  try{
+    if(pv&&pv.asp!==undefined&&pv.asp===VIEW.asp&&!matchMedia("(prefers-reduced-motion: reduce)").matches
+       &&(Math.abs(pv.k-VIEW.k)>1e-6||Math.abs(pv.x0-VIEW.x0)>1e-9||Math.abs(pv.y0-VIEW.y0)>1e-9)){
+      const nw=svg.querySelector("#world");
+      if(nw&&nw.animate){
+        const s=pv.k/VIEW.k, T=new DOMMatrix([s,0,0,s,(VIEW.x0-pv.x0)*pv.k,(VIEW.y0-pv.y0)*pv.k]);   // position de la nouvelle carte telle que vue dans l'ancien cadrage
+        const from=cur?cur.multiply(T):T;
+        nw.animate([{transform:from.toString()},{transform:"none"}],{duration:600,easing:"cubic-bezier(.45,0,.2,1)"});
+      }
+    }
+  }catch(e){}
   const msg=document.getElementById("mapmsg");
   const m=state.view==="fcs"&&state.market&&MARKETS.find(x=>x.id===state.market);
   msg.hidden=!(m&&!m.all&&!located(m)); msg.textContent="Les sites de ce marché seront précisés prochainement";
@@ -1449,6 +1465,7 @@ ${v.rs.trim()}`;
   dlg.addEventListener("close",()=>{ if(!done.hidden){ form.reset(); upd(); } });
 })();
 </script>
+
 
 
 
