@@ -600,7 +600,10 @@ function parseAmount(v){
 function parseType(v){ const t=norm(v); if(/^(moe|maitrise)/.test(t)) return "MOE"; if(/^(trx|travaux)/.test(t)) return "TRX"; return clean(v)||"Autre"; }
 /* Types présents dans la table (MOE puis TRX en tête, les autres dans l'ordre d'apparition) */
 let TYPES=[];
-const tc=t=>"ty"+(Math.max(0,TYPES.indexOf(t))%6);
+/* Couleur d'un type : calculée sur l'ensemble des types de TOUS les onglets, pour qu'un même type garde la même couleur partout (chantiers, marchés, fiche contact) */
+const typeOrder=()=>{const seen=[...TYPES]; try{ for(const v of Object.keys(DATA||{})) for(const t of ((DATA[v]&&DATA[v].TYPES)||[])) seen.push(t); }catch(e){} try{ for(const m of (MARKETS||[])) seen.push(m.type); }catch(e){}
+  const u=[...new Set(seen)]; return [...["MOE","TRX"].filter(t=>u.includes(t)), ...u.filter(t=>t!=="MOE"&&t!=="TRX")];};
+const tc=t=>"ty"+(Math.max(0,typeOrder().indexOf(t))%6);
 const typeLabel=t=>(CFG_TYPES[t]||t);
 function parseLots(v){
   const t=clean(v), n=norm(t); if(!t) return null;
@@ -1446,6 +1449,7 @@ ${v.rs.trim()}`;
   dlg.addEventListener("close",()=>{ if(!done.hidden){ form.reset(); upd(); } });
 })();
 </script>
+
 
 
 
