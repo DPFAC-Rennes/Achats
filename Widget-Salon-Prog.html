@@ -819,16 +819,18 @@ const myW=lat=>{const s=Math.sin(lat*Math.PI/180);return 0.5-Math.log((1+s)/(1-s
 const VW=760; let ASPECT=1.56, VH=VW/ASPECT;              // le ratio s'adapte à la place disponible (voir fitSide)
 let VIEW={x0:0,y0:0,k:1};
 const P=(lon,lat)=>[(mxW(lon)-VIEW.x0)*VIEW.k,(myW(lat)-VIEW.y0)*VIEW.k];
+const ZOOM_VILLE_DEG=2.8;   // largeur du cadre (en degrés de longitude) quand une ville est sélectionnée ; augmenter = zoom moins serré
 let PREV_VIEW=null;
 function computeView(){
   PREV_VIEW=VIEW;
   const shown=[...new Set(sel().map(o=>o.city))].map(k=>CITIES[k]).filter(c=>c&&c.lat!=null);
-  const pts=shown.length?shown:Object.values(CITIES).filter(c=>c.lat!=null);   // filtre vide : toute la page
+  const cs=state.city&&CITIES[state.city]&&CITIES[state.city].lat!=null?CITIES[state.city]:null;           // ville sélectionnée : zoom dessus
+  const pts=cs?[cs]:shown.length?shown:Object.values(CITIES).filter(c=>c.lat!=null);   // filtre vide : toute la page
   let lo0=-4.8,lo1=-1.0,la0=47.25,la1=48.9;                                     // Bretagne par défaut
   if(pts.length){ lo0=Math.min(...pts.map(c=>c.lon)); lo1=Math.max(...pts.map(c=>c.lon));
                   la0=Math.min(...pts.map(c=>c.lat)); la1=Math.max(...pts.map(c=>c.lat)); }
   let x0=mxW(lo0), x1=mxW(lo1), y0=myW(la1), y1=myW(la0);
-  const minW=mxW(3.4)-mxW(0);                                                  // au moins ~3,4° de large
+  const minW=mxW(cs?ZOOM_VILLE_DEG:3.4)-mxW(0);                                                  // au moins ~3,4° de large
   let w=Math.max(x1-x0,minW), h=y1-y0;
   // marges : un peu plus à droite pour les étiquettes
   let cx=(x0+x1)/2, cy=(y0+y1)/2; w*=1.30; h*=1.35;
@@ -1064,7 +1066,7 @@ document.addEventListener("click",e=>{
   const t=e.target.closest("[data-type]"); if(t){state.type=t.dataset.type;render();return;}
   const y=e.target.closest("[data-year]"); if(y){const v=y.dataset.year||null;state.year=state.year===v?null:v;render();return;}
   const c=e.target.closest("[data-city]"); if(c){const v=c.dataset.city||null;state.city=state.city===v?null:v;render();return;}
-  const cell=e.target.closest("[data-cell]"); if(cell){const i=cell.dataset.cell.lastIndexOf("|");state.city=cell.dataset.cell.slice(0,i);state.year=cell.dataset.cell.slice(i+1);render();
+  const cell=e.target.closest("[data-cell]"); if(cell){const i=cell.dataset.cell.lastIndexOf("|");const cv=cell.dataset.cell.slice(0,i), yv=cell.dataset.cell.slice(i+1);if(state.city===cv&&state.year===yv){state.city=null;state.year=null;}else{state.city=cv;state.year=yv;}render();
     document.getElementById("mapbox").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});}
 });
 document.addEventListener("keydown",e=>{
@@ -1465,6 +1467,7 @@ ${v.rs.trim()}`;
   dlg.addEventListener("close",()=>{ if(!done.hidden){ form.reset(); upd(); } });
 })();
 </script>
+
 
 
 
