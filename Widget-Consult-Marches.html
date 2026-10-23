@@ -39,17 +39,19 @@ button,input,select{font:inherit;color:inherit}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 
 /* ---------- En-tête compact ---------- */
-.brand{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
 .brand h1{margin:0;font-size:16px;line-height:1.2}
 .brand .titre p{margin:1px 0 0;font-size:12px;color:var(--muted)}
 .sign{display:flex;align-items:center;gap:12px;margin:0;flex:none}
-.sign img{height:40px;width:auto;display:block}
-.sign .vl{width:3px;align-self:stretch;min-height:34px;background:#E1772E;flex:none}
-.sign figcaption{font-size:12px;line-height:1.35;color:var(--ink);max-width:170px}
+.sign img{height:52px;width:auto;display:block}
+.sign .vl{width:3px;align-self:stretch;min-height:44px;background:#000091;flex:none}
+.sign figcaption{font-size:12.5px;line-height:1.4;color:var(--ink);max-width:190px;font-weight:500}
+.sign figcaption b{font-weight:inherit}
 .sign:not(.has-logo) .vl{display:none}
-.droite{display:flex;align-items:center;gap:10px}
-.dl{width:30px;height:30px;border:1px solid transparent;background:none;border-radius:7px;color:var(--muted);cursor:pointer;display:grid;place-items:center;flex:none}
-.dl:hover{border-color:var(--line);color:var(--accent);background:var(--soft)}
+.droite{display:flex;align-items:center;gap:10px;justify-self:end}
+.dl{justify-self:center;border:0;background:none;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 8px;border-radius:6px}
+.dl:hover{color:var(--accent);text-decoration:underline}
+.dl svg{flex:none}
 .info{margin:0;padding:6px 16px;font-size:12.5px;color:var(--accent);background:var(--accent-bg)}
 .info a{color:inherit;font-weight:600}
 .diag{margin:0;padding:6px 16px;font-size:12.5px;color:var(--warn);background:var(--warn-bg)}
@@ -190,10 +192,11 @@ td small{color:var(--muted)}
 <body>
 <header class="brand">
   <div class="titre"><h1>Catalogue des marchés</h1><p>Classement selon la nomenclature GM DAE</p></div>
-  <div class="droite">
-  <button type="button" class="dl" id="dl" hidden title="Télécharger le catalogue autonome (fichier HTML consultable hors ligne)" aria-label="Télécharger le catalogue autonome">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+  <button type="button" class="dl" id="dl" hidden title="Télécharger le catalogue autonome (fichier HTML consultable hors ligne)" >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Télécharger le catalogue hors ligne
   </button>
+  <div class="droite">
+
   <figure class="sign" id="sign">
     <img id="logo" alt="Ministère de la Justice – Secrétariat général" hidden>
     <span class="vl" aria-hidden="true"></span>
@@ -207,6 +210,7 @@ td small{color:var(--muted)}
   <div id="ui">
     <div class="bar">
       <div class="seg" id="profil" role="group" aria-label="Je suis gestionnaire">
+        <button type="button" data-p="TOUS" aria-pressed="true" title="Tous les programmes : 182, 107 et 912">Tous</button>
         <button type="button" data-p="PJJ" aria-pressed="false" title="Gestionnaire PJJ, programme 182">PJJ · 182</button>
         <button type="button" data-p="DISP" aria-pressed="false" title="Gestionnaire DISP, programmes 107 et 912">DISP · 107 + 912</button>
       </div>
@@ -263,15 +267,17 @@ td small{color:var(--muted)}
 <script>
 /* ===================== Configuration ===================== */
 const SOURCE0 = '<!doctype html>\n' + document.documentElement.outerHTML;   // copie de secours de la page
-const VERSION = '2026-10-23 · v14';
+const VERSION = '2026-10-23 · v16';
 const NOM_AUTONOME = 'Catalogue-marché-autonome.html';
 let RAW = [], LOGO_DATA = null, FONTS_DATA = [];
 const b64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
 const deB64 = t => { const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer; };
 const ALERTE_JOURS = 183;
 const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
+function setMention(t){ const m = String(t || '').match(/^(.*?\bpar)\s+(.+)$/i); const el = document.getElementById('mention');
+  if (m){ el.innerHTML = ''; el.append(m[1]); el.append(document.createElement('br')); const b = document.createElement('b'); b.textContent = m[2]; el.append(b); } else el.textContent = t || ''; }
 const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
-const PROFILS = { PJJ:['182'], DISP:['107','912'] };
+const PROFILS = { TOUS:['182','107','912'], PJJ:['182'], DISP:['107','912'] };
 const LIB_PROG = { '182':'182 · PJJ', '107':'107 · Services de l\'État', '912':'912 · Cantine' };
 const COLS = { objet:'Objet', lots:'Lots', reference:'Reference', titulaire:'Titulaire', fournisseur:'N_fournisseur',
   ej:'N_EJ', pa:'PA', duree:'Duree', debut:'Debut', fin:'Fin', referent:'Referent', rubrique:'Rubrique',
@@ -341,8 +347,8 @@ const normSeg = v => { if (v == null || v === '') return ''; if (typeof v === 'n
 
 /* ===================== État ===================== */
 let EJS = [], POSTES_TABLE = null, lastFocus = null, current = null;
-const state = { profil:'', sous:'', q:'', doms:new Set(), statut:null, etab:'', sort:'arbo', tab:'cat', regle:'' };
-try { const s = JSON.parse(localStorage.getItem('marches-ui') || '{}'); Object.assign(state, {profil:s.profil||'', sous:s.sous||'', sort:s.sort||'arbo'}); } catch(e){}
+const state = { profil:'TOUS', sous:'', q:'', doms:new Set(), statut:null, etab:'', sort:'arbo', tab:'cat', regle:'' };
+try { const s = JSON.parse(localStorage.getItem('marches-ui') || '{}'); Object.assign(state, {profil:PROFILS[s.profil] ? s.profil : 'TOUS', sous:s.sous||'', sort:s.sort||'arbo'}); } catch(e){}
 const save = () => { try { localStorage.setItem('marches-ui', JSON.stringify({profil:state.profil, sous:state.sous, sort:state.sort})); } catch(e){} };
 const scope = () => state.profil ? (state.sous ? [state.sous] : PROFILS[state.profil]) : [];
 
@@ -468,7 +474,7 @@ function card(c, t, dom){
   const gmsDom = dom ? uniq(c.vis.filter(p => p.domaine === dom).map(p => p.gm)) : c.gms;
   const autres = dom ? c.domaines.filter(d => d !== dom) : [];
   const nbEJ = c.ejs.length;
-  const progBadge = state.profil === 'DISP' && !state.sous ? `<span class="badge b-prog">${c.progs.join(' + ')}</span>` : '';
+  const progBadge = state.profil !== 'PJJ' && !state.sous ? `<span class="badge b-prog">${c.progs.join(' + ')}</span>` : '';
   const row = (l, v, cls='') => v ? `<dt>${l}</dt><dd class="${cls}" title="${esc(v)}">${hl(v, t)}</dd>` : '';
   return `<button type="button" class="card" data-k="${esc(c.key)}" style="--c:${teinte(dom || c.domaines[0])}" aria-label="${esc(c.titre)}, ${esc(c.titulaire||'titulaire non renseigné')}, ${esc(c.st.label)}">
     ${kicker ? `<span class="kick">${hl(kicker, t)}</span>` : ''}
@@ -873,7 +879,7 @@ async function chargerRessources(){
   if (!ctx.id || !ctx.id.length){ diag(`La table « ${RESSOURCES.table} » est vide`); return; }
   const col = k => (ctx[RESSOURCES[k]] || [])[0];
   if (!(RESSOURCES.logo in ctx)) diag(`Colonne « ${RESSOURCES.logo} » absente de ${RESSOURCES.table}`);
-  const texte = col('mention'); if (texte) $('#mention').textContent = texte;
+  const texte = col('mention'); if (texte) setMention(texte);
   const logoIds = ids(col('logo')), policeIds = ids(col('police'));
   if (RESSOURCES.logo in ctx && !logoIds.length) diag(`Aucune pièce jointe dans « ${RESSOURCES.logo} » (vérifier que la colonne est de type Pièces jointes)`);
   if (!logoIds.length && !policeIds.length) return;
@@ -926,7 +932,7 @@ async function construireAutonome(){
       o[COLS.postes] = JSON.stringify(parId.get(r.id).postes.map(p => ({ ...p, debut: isoJ(p.debut) || p.debut || '', fin: isoJ(p.fin) || p.fin || '' })));
       return o;
     });
-    const embed = { genere: new Date().toISOString(), mention: $('#mention').textContent, logo: LOGO_DATA, fonts: FONTS_DATA, records };
+    const embed = { genere: new Date().toISOString(), mention: $('#mention').textContent.replace(/par(?=\S)/, 'par '), logo: LOGO_DATA, fonts: FONTS_DATA, records };
     const json = JSON.stringify(embed).replace(/</g, '\\u003c');
     const marque = '<script>\n/* ===================== Configuration';
     const i = src.indexOf(marque);
@@ -942,13 +948,13 @@ async function construireAutonome(){
 $('#dl').addEventListener('click', construireAutonome);
 
 /* ===================== Démarrage ===================== */
-$('#mention').textContent = MENTION;
+setMention(MENTION);
 $('#version').textContent = 'Version du widget : ' + VERSION;
 const EMBED = window.__EMBED || null;
 const INSIDE = !EMBED && window.self !== window.top && typeof grist !== 'undefined';
 if (EMBED){
   /* Mode autonome : données figées, consultation seule */
-  if (EMBED.mention) $('#mention').textContent = EMBED.mention;
+  if (EMBED.mention) setMention(EMBED.mention);
   if (EMBED.logo){ const img = $('#logo'); img.src = `data:${EMBED.logo.type};base64,${EMBED.logo.b64}`; img.hidden = false; $('#sign').classList.add('has-logo'); }
   (EMBED.fonts || []).forEach(f => { try { const face = new FontFace('Marianne', deB64(f.b64), { weight:f.weight, style:f.style, display:'swap' }); face.load().then(x => document.fonts.add(x)).catch(() => {}); } catch(e){} });
   $('#tab-ctrl').hidden = true;
@@ -982,6 +988,7 @@ if (EMBED){
 </script>
 </body>
 </html>
+
 
 
 
