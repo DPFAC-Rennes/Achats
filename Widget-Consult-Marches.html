@@ -47,6 +47,11 @@ button,input,select{font:inherit;color:inherit}
 .sign .vl{width:3px;align-self:stretch;min-height:34px;background:#E1772E;flex:none}
 .sign figcaption{font-size:12px;line-height:1.35;color:var(--ink);max-width:170px}
 .sign:not(.has-logo) .vl{display:none}
+.droite{display:flex;align-items:center;gap:10px}
+.dl{width:30px;height:30px;border:1px solid transparent;background:none;border-radius:7px;color:var(--muted);cursor:pointer;display:grid;place-items:center;flex:none}
+.dl:hover{border-color:var(--line);color:var(--accent);background:var(--soft)}
+.info{margin:0;padding:6px 16px;font-size:12.5px;color:var(--accent);background:var(--accent-bg)}
+.info a{color:inherit;font-weight:600}
 .diag{margin:0;padding:6px 16px;font-size:12.5px;color:var(--warn);background:var(--warn-bg)}
 .version{font-size:11px;color:var(--muted);text-align:right;padding:0 16px 14px}
 .top{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:7px 16px 0}
@@ -185,13 +190,19 @@ td small{color:var(--muted)}
 <body>
 <header class="brand">
   <div class="titre"><h1>Catalogue des marchés</h1><p>Classement selon la nomenclature GM DAE</p></div>
+  <div class="droite">
+  <button type="button" class="dl" id="dl" hidden title="Télécharger le catalogue autonome (fichier HTML consultable hors ligne)" aria-label="Télécharger le catalogue autonome">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+  </button>
   <figure class="sign" id="sign">
     <img id="logo" alt="Ministère de la Justice – Secrétariat général" hidden>
     <span class="vl" aria-hidden="true"></span>
     <figcaption id="mention"></figcaption>
   </figure>
+  </div>
 </header>
 <p id="diag" class="diag" role="status" hidden></p>
+<p id="info" class="info" role="status" hidden></p>
 <div class="top">
   <div id="ui">
     <div class="bar">
@@ -251,7 +262,12 @@ td small{color:var(--muted)}
 
 <script>
 /* ===================== Configuration ===================== */
-const VERSION = '2026-10-18 · v12';
+const SOURCE0 = '<!doctype html>\n' + document.documentElement.outerHTML;   // copie de secours de la page
+const VERSION = '2026-10-23 · v13';
+const NOM_AUTONOME = 'Catalogue-marché-autonome.html';
+let RAW = [], LOGO_DATA = null, FONTS_DATA = [];
+const b64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+const deB64 = t => { const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer; };
 const ALERTE_JOURS = 183;
 const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
 const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
@@ -768,6 +784,7 @@ document.addEventListener('keydown', e => {
   if (!open && e.key === '/' && !['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)){ e.preventDefault(); $('#q').focus(); }
 });
 function load(records){
+  RAW = records;
   EJS = records.map(normaliseEJ).filter(e => !e.archive);   // les marchés archivés (widget de saisie) sont exclus
   const tous = EJS.flatMap(e => e.postes);
   PROG_COLONNE = tous.some(p => p.programme);
@@ -829,6 +846,7 @@ async function chargerRessources(){
       const img = $('#logo');
       img.onerror = () => { img.hidden = true; $('#sign').classList.remove('has-logo'); diag(`Logo « ${noms[id] || id} » illisible par le navigateur`); };
       img.src = URL.createObjectURL(new Blob([buf], { type: f.type })); img.hidden = false; $('#sign').classList.add('has-logo');
+      LOGO_DATA = { type: f.type, b64: b64(buf) };
     } catch(e){ diag(`Logo non téléchargé (${e.message})`); }
   }
   for (const id of policeIds){
@@ -837,16 +855,62 @@ async function chargerRessources(){
       if (f.kind === 'zip'){ diag(`« ${noms[id] || id} » est un ZIP : déposer les fichiers de police décompressés`); continue; }
       if (f.kind !== 'font') continue;
       const face = new FontFace('Marianne', buf, { ...graisse(noms[id] || ''), display:'swap' });
+      FONTS_DATA.push({ ...graisse(noms[id] || ''), b64: b64(buf) });
       await face.load(); document.fonts.add(face);
     } catch(e){ diag(`Police « ${noms[id] || id} » non chargée`); }
   }
 }
 
+/* ===================== Catalogue autonome ===================== */
+/* Fabrique un fichier HTML unique contenant ce widget + toutes les données, le logo et la police : consultable hors Grist et hors réseau. */
+const isoJ = v => { const d = toDate(v); return d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : ''; };
+async function construireAutonome(){
+  const btn = $('#dl'); btn.disabled = true;
+  try {
+    let src = '';
+    try { const r = await fetch(location.href.split('#')[0], { cache:'no-store' }); if (r.ok) src = await r.text(); } catch(e){}
+    if (!/<\/html>\s*$/i.test(src.trim())) src = SOURCE0;
+    src = src.replace(/<script src="https:\/\/docs\.getgrist\.com\/grist-plugin-api\.js"><\/script>\s*/i, '');
+    const parId = new Map(EJS.map(e => [e.id, e]));
+    const records = RAW.filter(r => parId.has(r.id)).map(r => {
+      const o = {};
+      Object.entries(r).forEach(([k, v]) => { if (typeof v === 'function') return; o[k] = v instanceof Date ? isoJ(v) : v; });
+      o[COLS.postes] = JSON.stringify(parId.get(r.id).postes.map(p => ({ ...p, debut: isoJ(p.debut) || p.debut || '', fin: isoJ(p.fin) || p.fin || '' })));
+      return o;
+    });
+    const embed = { genere: new Date().toISOString(), mention: $('#mention').textContent, logo: LOGO_DATA, fonts: FONTS_DATA, records };
+    const json = JSON.stringify(embed).replace(/</g, '\\u003c');
+    const marque = '<script>\n/* ===================== Configuration';
+    const i = src.indexOf(marque);
+    if (i < 0) throw new Error('structure de la page non reconnue');
+    const html = src.slice(0, i) + `<script>window.__EMBED = ${json};<\/script>\n` + src.slice(i);
+    const url = URL.createObjectURL(new Blob([html], { type:'text/html;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = NOM_AUTONOME; document.body.appendChild(a); a.click(); a.remove();
+    const info = $('#info'); info.hidden = false;
+    info.innerHTML = `Catalogue autonome généré : ${records.length} EJ, ${(html.length/1048576).toFixed(1).replace('.',',')} Mo. Si le téléchargement ne démarre pas, <a href="${url}" target="_blank" rel="noopener" download="${NOM_AUTONOME}">ouvrez-le ici</a> puis enregistrez la page (Ctrl+S).`;
+  } catch(e){ diag('Catalogue autonome non généré : ' + (e.message || e)); }
+  finally { btn.disabled = false; }
+}
+$('#dl').addEventListener('click', construireAutonome);
+
 /* ===================== Démarrage ===================== */
 $('#mention').textContent = MENTION;
 $('#version').textContent = 'Version du widget : ' + VERSION;
-const INSIDE = window.self !== window.top && typeof grist !== 'undefined';
-if (INSIDE){
+const EMBED = window.__EMBED || null;
+const INSIDE = !EMBED && window.self !== window.top && typeof grist !== 'undefined';
+if (EMBED){
+  /* Mode autonome : données figées, consultation seule */
+  if (EMBED.mention) $('#mention').textContent = EMBED.mention;
+  if (EMBED.logo){ const img = $('#logo'); img.src = `data:${EMBED.logo.type};base64,${EMBED.logo.b64}`; img.hidden = false; $('#sign').classList.add('has-logo'); }
+  (EMBED.fonts || []).forEach(f => { try { const face = new FontFace('Marianne', deB64(f.b64), { weight:f.weight, style:f.style, display:'swap' }); face.load().then(x => document.fonts.add(x)).catch(() => {}); } catch(e){} });
+  $('#tab-ctrl').hidden = true;
+  const g = new Date(EMBED.genere);
+  const info = $('#info'); info.hidden = false;
+  info.textContent = `Catalogue autonome · données figées au ${g.toLocaleDateString('fr-FR')} à ${g.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })} · consultation seule. Pour la version à jour, ouvrez le catalogue dans Grist.`;
+  document.title = 'Catalogue des marchés (autonome)';
+  load(EMBED.records || []);
+} else if (INSIDE){
+  $('#dl').hidden = false;
   grist.ready({ requiredAccess:'full' });
   chargerRessources(); chargerReferentiels();
   let recu = false;
@@ -870,6 +934,7 @@ if (INSIDE){
 </script>
 </body>
 </html>
+
 
 
 
