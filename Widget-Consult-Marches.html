@@ -263,7 +263,7 @@ td small{color:var(--muted)}
 <script>
 /* ===================== Configuration ===================== */
 const SOURCE0 = '<!doctype html>\n' + document.documentElement.outerHTML;   // copie de secours de la page
-const VERSION = '2026-10-23 · v13';
+const VERSION = '2026-10-23 · v14';
 const NOM_AUTONOME = 'Catalogue-marché-autonome.html';
 let RAW = [], LOGO_DATA = null, FONTS_DATA = [];
 const b64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
@@ -325,6 +325,19 @@ function hl(text, terms){
 }
 const plural = (n, s, p) => `${n} ${n > 1 ? (p || s + 's') : s}`;
 const ordre = c => c === '—' ? 'zz' : c;
+/* Codes GM / segment / domaine : Grist peut les avoir importés comme des dates (37.01.01 → 1937-01-01) ou des nombres (32.01 → 32,01) */
+function normGM(v){
+  if (v == null || v === '') return '';
+  const s = String(v).trim(); let d = null;
+  if (v instanceof Date) d = v;
+  else if (typeof v === 'number' || /^-?\d{6,}$/.test(s)) d = new Date(Number(v) * 1000);
+  if (d && !isNaN(d)) return [d.getUTCFullYear() % 100, d.getUTCMonth() + 1, d.getUTCDate()].map(x => String(x).padStart(2, '0')).join('.');
+  const m = s.match(/^\d{2}(\d{2})-(\d{2})-(\d{2})/); if (m) return `${m[1]}.${m[2]}.${m[3]}`;
+  return s;
+}
+const normDom = v => { if (v == null || v === '') return ''; const s = String(typeof v === 'number' ? Math.trunc(v) : v).trim(); return /^\d$/.test(s) ? '0' + s : s; };
+const normSeg = v => { if (v == null || v === '') return ''; if (typeof v === 'number') return v.toFixed(2).padStart(5, '0'); return String(v).trim(); };
+
 
 /* ===================== État ===================== */
 let EJS = [], POSTES_TABLE = null, lastFocus = null, current = null;
@@ -346,8 +359,8 @@ function normaliseEJ(rec){
     axe:p.Axe, prestation:p.Prestation, duree:p.Duree, debut:p.Debut, fin:p.Fin, commentaire:p.Commentaire, info:p.Info }));
   postes.forEach(p => { let pm = String(p.programme ?? '').match(/(912|107|182)/);
     if (!pm) for (const x of [p.df, p.cf, p.activite]){ const m = String(x ?? '').match(/^\D*?0?(912|107|182)/); if (m){ pm = m; break; } }
-    p.programme = pm ? pm[1] : ''; p.domaine = String(p.domaine || '') || '—';
-    if (p.domaine === '—') p.domaine_libelle = 'Non classé (GM à renseigner)'; p.gm = String(p.gm ?? ''); });
+    p.programme = pm ? pm[1] : ''; p.gm = normGM(p.gm); p.segment = normSeg(p.segment); p.domaine = normDom(p.domaine) || '—';
+    if (p.domaine === '—') p.domaine_libelle = 'Non classé (GM à renseigner)'; });
   return { id:rec.id, objet:g('objet'), lots:g('lots'), reference:g('reference'), titulaire:g('titulaire'),
     fournisseur:String(g('fournisseur')), ej:String(g('ej')), pa:g('pa'), duree:g('duree'),
     debut:toDate(g('debut')), fin:toDate(g('fin')), referent:g('referent'), rubrique:g('rubrique'),
@@ -678,12 +691,45 @@ function editeur(c, i){
   return `${lab}${input}<button type="button" class="btn primary" data-fix="${i}">Enregistrer</button>`;
 }
 let CTRL_VIEW = [];
+/* Réparation des codes GM convertis en dates à l'import */
+let GMFIX = null;   // { Postes:{ids, cols}, Nomenclature_GM:{…}, n }
+async function detecterGM(){
+  const plan = { n:0 };
+  const regles = { Postes:{ GM:normGM, Segment:normSeg, Domaine_achat:normDom }, Nomenclature_GM:{ GM:normGM, Segment:normSeg, Domaine:normDom } };
+  for (const [t, cols] of Object.entries(regles)){
+    let tab; try { tab = await grist.docApi.fetchTable(t); } catch(e){ continue; }
+    const ids = [], vals = {}; Object.keys(cols).forEach(c => vals[c] = []);
+    tab.id.forEach((id, i) => {
+      let change = false; const row = {};
+      Object.entries(cols).forEach(([c, f]) => { if (!(c in tab)) return; const raw = tab[c][i], v = f(raw); row[c] = v; if (raw !== '' && raw != null && String(raw) !== v) change = true; });
+      if (change){ ids.push(id); Object.keys(row).forEach(c => vals[c].push(row[c])); }
+    });
+    Object.keys(vals).forEach(c => { if (!(c in tab)) delete vals[c]; });
+    if (ids.length){ plan[t] = { ids, vals }; plan.n += ids.length; }
+  }
+  GMFIX = plan.n ? plan : null;
+  if (GMFIX) diag(`Des codes GM ont été transformés en dates par Grist à l'import (${GMFIX.n} lignes). Ouvrez l'onglet Contrôles pour les réparer.`);
+}
+async function reparerGM(btn){
+  if (!GMFIX) return; btn.disabled = true; btn.textContent = 'Réparation…';
+  try {
+    const A = ['Postes','Nomenclature_GM'].filter(t => GMFIX[t]).map(t => ['BulkUpdateRecord', t, GMFIX[t].ids, GMFIX[t].vals]);
+    await grist.docApi.applyUserActions(A);
+    GMFIX = null; $('#diag').hidden = true; DIAG.length = 0;
+    try { const t = await grist.docApi.fetchTable('Postes'); POSTES_TABLE = t.id.map((id,i) => Object.fromEntries(Object.keys(t).map(k => [k, t[k][i]]))); } catch(e){}
+    render(); $('#live').textContent = 'Codes GM réparés';
+  } catch(e){ btn.disabled = false; btn.textContent = 'Réparer les codes GM'; alert('Réparation refusée : ' + (e.message || e)); }
+}
 function renderCtrl(list){
   CTRL_VIEW = list;
+  const bandeauGM = GMFIX ? `<section class="cgroup"><h2>Codes GM abîmés à l'import <span class="badge b-bad">${GMFIX.n}</span></h2>
+    <div class="crow"><div class="what"><b>Grist a pris des codes comme « 37.01.01 » pour des dates.</b>
+      <span class="note">1. Dans Grist, passez les colonnes <b>Postes.GM</b> et <b>Nomenclature_GM.GM</b> (et Segment, Domaine) en type <b>Texte</b>. 2. Cliquez sur Réparer : les codes sont réécrits au bon format.</span></div>
+      <div class="fix"><button type="button" class="btn primary" id="repGM">Réparer les codes GM</button></div></div></section>` : '';
   $('#live').textContent = plural(list.length, 'contrôle à traiter', 'contrôles à traiter');
-  if (!list.length){ $('#ctrl').innerHTML = `<p class="empty">Aucune anomalie dans votre périmètre.</p>`; return; }
+  if (!list.length){ $('#ctrl').innerHTML = bandeauGM + `<p class="empty">Aucune anomalie dans votre périmètre.</p>`; return; }
   const groupes = {}; list.forEach((c, i) => (groupes[c.code] = groupes[c.code] || []).push([c, i]));
-  $('#ctrl').innerHTML = `<p class="ctrl-intro">Les anomalies sont recalculées à chaque modification du document. Corrigez directement ici : l'enregistrement met à jour Grist, et la ligne disparaît une fois corrigée.${IGNORE_OK ? ' « Ignorer » sert pour les cas vérifiés et normaux.' : ''}</p>` +
+  $('#ctrl').innerHTML = bandeauGM + `<p class="ctrl-intro">Les anomalies sont recalculées à chaque modification du document. Corrigez directement ici : l'enregistrement met à jour Grist, et la ligne disparaît une fois corrigée.${IGNORE_OK ? ' « Ignorer » sert pour les cas vérifiés et normaux.' : ''}</p>` +
   Object.keys(REGLES).filter(k => groupes[k]).map(k => `<section class="cgroup" aria-labelledby="cg-${k}"><h2 id="cg-${k}">${esc(REGLES[k].label)} <span class="badge b-bad">${groupes[k].length}</span><span class="note">${esc(REGLES[k].aide)}</span></h2>
     ${groupes[k].map(([c, i]) => `<div class="crow">
       <div class="what"><b>${esc(c.ej.lots || c.ej.reference || c.ej.objet || 'Sans objet')}</b>
@@ -723,13 +769,15 @@ async function ignorer(i){
 async function chargerReferentiels(){
   if (!INSIDE) return;
   try { const n = await grist.docApi.fetchTable('Nomenclature_GM');
-    NOMEN = new Set(n.GM.map(String));
-    $('#gmlist').innerHTML = n.GM.map((g,i) => `<option value="${esc(g)}">${esc(n.Libelle_GM?.[i] || '')}</option>`).join(''); } catch(e){}
+    NOMEN = new Set(n.GM.map(normGM));
+    $('#gmlist').innerHTML = n.GM.map((g,i) => `<option value="${esc(normGM(g))}">${esc(n.Libelle_GM?.[i] || '')}</option>`).join(''); } catch(e){}
+  await detecterGM();
   try { const t = await grist.docApi.fetchTable('Controles_ignores'); IGNORES = new Set((t.Cle || []).map(String)); IGNORE_OK = true; } catch(e){ IGNORE_OK = false; }
   render();
 }
 $('#ctrl').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'repGM') return reparerGM(b);
   if (b.dataset.fix != null) corriger(+b.dataset.fix);
   else if (b.dataset.ign != null) ignorer(+b.dataset.ign);
 });
@@ -934,6 +982,7 @@ if (EMBED){
 </script>
 </body>
 </html>
+
 
 
 
