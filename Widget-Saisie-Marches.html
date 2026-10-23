@@ -174,7 +174,7 @@ dialog .df{padding:10px 18px 14px;display:flex;justify-content:flex-end;gap:8px}
 
 <script>
 /* ===================== Configuration ===================== */
-const VERSION = 'saisie · 2026-10-18 · v1';
+const VERSION = 'saisie · 2026-10-23 · v2';
 const MENTION = 'Conçu et réalisé par le DPFAC de Rennes';
 const RESSOURCES = { table:'Contexte', logo:'Logo_SG', police:'Police_Marianne', mention:'Mention' };
 const ALERTE_JOURS = 183;
@@ -213,6 +213,18 @@ function statut(fin){
   const j = Math.round((f - Date.now()) / 864e5);
   return j < 0 ? {cls:'b-bad', label:'Expiré'} : j <= ALERTE_JOURS ? {cls:'b-warn', label:'À renouveler'} : {cls:'b-ok', label:'Actif'};
 }
+/* Codes GM / segment / domaine : Grist peut les avoir importés comme des dates (37.01.01 → 1937-01-01) ou des nombres (32.01 → 32,01) */
+function normGM(v){
+  if (v == null || v === '') return '';
+  const s = String(v).trim(); let d = null;
+  if (v instanceof Date) d = v;
+  else if (typeof v === 'number' || /^-?\d{6,}$/.test(s)) d = new Date(Number(v) * 1000);
+  if (d && !isNaN(d)) return [d.getUTCFullYear() % 100, d.getUTCMonth() + 1, d.getUTCDate()].map(x => String(x).padStart(2, '0')).join('.');
+  const m = s.match(/^\d{2}(\d{2})-(\d{2})-(\d{2})/); if (m) return `${m[1]}.${m[2]}.${m[3]}`;
+  return s;
+}
+const normDom = v => { if (v == null || v === '') return ''; const s = String(typeof v === 'number' ? Math.trunc(v) : v).trim(); return /^\d$/.test(s) ? '0' + s : s; };
+const normSeg = v => { if (v == null || v === '') return ''; if (typeof v === 'number') return v.toFixed(2).padStart(5, '0'); return String(v).trim(); };
 const progDe = p => { for (const x of [p.Programme, p.Domaine_fonctionnel, p.Centre_financier, p.Activite]){ const m = String(x ?? '').match(/(912|107|182)/); if (m) return m[1]; } return ''; };
 
 /* ===================== État ===================== */
@@ -229,14 +241,14 @@ function typesNum(rows, table){
   NUMCOL[table] = out;
 }
 async function chargerPostes(){
-  try { POSTES = lignes(await grist.docApi.fetchTable(T.postes)); PCOLS = new Set(POSTES.length ? Object.keys(POSTES[0]) : CHAMPS_POSTE.map(c => c[0]).concat(['Marche']));
+  try { POSTES = lignes(await grist.docApi.fetchTable(T.postes)).map(p => ({ ...p, GM: normGM(p.GM) })); PCOLS = new Set(POSTES.length ? Object.keys(POSTES[0]) : CHAMPS_POSTE.map(c => c[0]).concat(['Marche']));
     typesNum(POSTES, T.postes);
     REF_POSTES = !POSTES.length || POSTES.some(p => typeof p.Marche === 'number');
   } catch(e){ POSTES = []; diag('Table Postes illisible : accorder l\'« Accès complet au document » au widget.'); }
 }
 async function chargerRetires(){ try { RETIRES = lignes(await grist.docApi.fetchTable(T.retirer)); } catch(e){ RETIRES = []; } }
 async function chargerNomen(){
-  try { const n = await grist.docApi.fetchTable(T.nomen); NOMEN = new Map(n.GM.map((g,i) => [String(g), { Libelle_GM:n.Libelle_GM?.[i]||'', Segment:n.Segment?.[i]||'', Libelle_segment:n.Libelle_segment?.[i]||'', Domaine_achat:n.Domaine?.[i]||'', Libelle_domaine:n.Libelle_domaine?.[i]||'' }]));
+  try { const n = await grist.docApi.fetchTable(T.nomen); NOMEN = new Map(n.GM.map((g,i) => [normGM(g), { Libelle_GM:n.Libelle_GM?.[i]||'', Segment:normSeg(n.Segment?.[i])||'', Libelle_segment:n.Libelle_segment?.[i]||'', Domaine_achat:normDom(n.Domaine?.[i])||'', Libelle_domaine:n.Libelle_domaine?.[i]||'' }]));
     if (!$('#gmlist')){ const dl = document.createElement('datalist'); dl.id = 'gmlist'; document.body.appendChild(dl); }
     $('#gmlist').innerHTML = [...NOMEN].map(([g,v]) => `<option value="${esc(g)}">${esc(v.Libelle_GM)}</option>`).join('');
   } catch(e){ NOMEN = null; }
@@ -714,3 +726,4 @@ if (INSIDE){
 </script>
 </body>
 </html>
+
